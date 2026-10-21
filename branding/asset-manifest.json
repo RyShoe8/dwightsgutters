@@ -1,0 +1,296 @@
+[
+  {
+    "svg": "logos/dwights-gutters-primary-color.svg",
+    "png": "logos/dwights-gutters-primary-color.png",
+    "width": 4960,
+    "viewBox": [
+      1240,
+      360
+    ],
+    "pixels": [
+      4960,
+      1440
+    ],
+    "alpha": true
+  },
+  {
+    "svg": "logos/dwights-gutters-compact-color.svg",
+    "png": "logos/dwights-gutters-compact-color.png",
+    "width": 3720,
+    "viewBox": [
+      1240,
+      310
+    ],
+    "pixels": [
+      3720,
+      930
+    ],
+    "alpha": true
+  },
+  {
+    "svg": "marks/dwights-gutters-mark-color.svg",
+    "png": "marks/dwights-gutters-mark-color.png",
+    "width": 2160,
+    "viewBox": [
+      360,
+      360
+    ],
+    "pixels": [
+      2160,
+      2160
+    ],
+    "alpha": true
+  },
+  {
+    "svg": "logos/dwights-gutters-stacked-color.svg",
+    "png": "logos/dwights-gutters-stacked-color.png",
+    "width": 3200,
+    "viewBox": [
+      800,
+      690
+    ],
+    "pixels": [
+      3200,
+      2760
+    ],
+    "alpha": true
+  },
+  {
+    "svg": "logos/dwights-gutters-primary-navy.svg",
+    "png": "logos/dwights-gutters-primary-navy.png",
+    "width": 4960,
+    "viewBox": [
+      1240,
+      360
+    ],
+    "pixels": [
+      4960,
+      1440
+    ],
+    "alpha": true
+  },
+  {
+    "svg": "logos/dwights-gutters-compact-navy.svg",
+    "png": "logos/dwights-gutters-compact-navy.png",
+    "width": 3720,
+    "viewBox": [
+      1240,
+      310
+    ],
+    "pixels": [
+      3720,
+      930
+    ],
+    "alpha": true
+  },
+  {
+    "svg": "marks/dwights-gutters-mark-navy.svg",
+    "png": "marks/dwights-gutters-mark-navy.png",
+    "width": 2160,
+    "viewBox": [
+      360,
+      360
+    ],
+    "pixels": [
+      2160,
+      2160
+    ],
+    "alpha": true
+  },
+  {
+    "svg": "logos/dwights-gutters-stacked-navy.svg",
+    "png": "logos/dwights-gutters-stacked-navy.png",
+    "width": 3200,
+    "viewBox": [
+      800,
+      690
+    ],
+    "pixels": [
+      3200,
+      2760
+    ],
+    "alpha": true
+  },
+  {
+    "svg": "logos/dwights-gutters-primary-white.svg",
+    "png": "logos/dwights-gutters-primary-white.png",
+    "width": 4960,
+    "viewBox": [
+      1240,
+      360
+    ],
+    "pixels": [
+      4960,
+      1440
+    ],
+    "alpha": true
+  },
+  {
+    "svg": "logos/dwights-gutters-compact-white.svg",
+    "png": "logos/dwights-gutters-compact-white.png",
+    "width": 3720,
+    "viewBox": [
+      1240,
+      310
+    ],
+    "pixels": [
+      3720,
+      930
+    ],
+    "alpha": true
+  },
+  {
+    "svg": "marks/dwights-gutters-mark-white.svg",
+    "png": "marks/dwights-gutters-mark-white.png",
+    "width": 2160,
+    "viewBox": [
+      360,
+      360
+    ],
+    "pixels": [
+      2160,
+      2160
+    ],
+    "alpha": true
+  },
+  {
+    "svg": "logos/dwights-gutters-stacked-white.svg",
+    "png": "logos/dwights-gutters-stacked-white.png",
+    "width": 3200,
+    "viewBox": [
+      800,
+      690
+    ],
+    "pixels": [
+      3200,
+      2760
+    ],
+    "alpha": true
+  },
+  {
+    "svg": "web/social-avatar-light.svg",
+    "png": "web/social-avatar-light.png",
+    "width": 2048,
+    "viewBox": [
+      1024,
+      1024
+    ],
+    "pixels": [
+      2048,
+      2048
+    ],
+    "alpha": true
+  },
+  {
+    "svg": "web/social-avatar-navy.svg",
+    "png": "web/social-avatar-navy.png",
+    "width": 2048,
+    "viewBox": [
+      1024,
+      1024
+    ],
+    "pixels": [
+      2048,
+      2048
+    ],
+    "alpha": true
+  },
+  {
+    "svg": "web/favicon.svg",
+    "png": "web/favicon.png",
+    "width": 512,
+    "viewBox": [
+      64,
+      64
+    ],
+    "pixels": [
+      512,
+      512
+    ],
+    "alpha": true
+  },
+  {
+    "svg": "web/website-header.svg",
+    "png": "web/website-header.png",
+    "width": 3000,
+    "viewBox": [
+      1500,
+      172
+    ],
+    "pixels": [
+      3000,
+      344
+    ],
+    "alpha": true
+  },
+  {
+    "svg": "print/business-card-front-bleed.svg",
+    "png": "print/business-card-front-bleed.png",
+    "width": 2250,
+    "viewBox": [
+      750,
+      450
+    ],
+    "pixels": [
+      2250,
+      1350
+    ],
+    "alpha": true
+  },
+  {
+    "svg": "print/business-card-back-bleed.svg",
+    "png": "print/business-card-back-bleed.png",
+    "width": 2250,
+    "viewBox": [
+      750,
+      450
+    ],
+    "pixels": [
+      2250,
+      1350
+    ],
+    "alpha": true
+  },
+  {
+    "svg": "print/business-card-front.svg",
+    "png": "print/business-card-front.png",
+    "width": 2100,
+    "viewBox": [
+      700,
+      400
+    ],
+    "pixels": [
+      2100,
+      1200
+    ],
+    "alpha": true
+  },
+  {
+    "svg": "print/business-card-back.svg",
+    "png": "print/business-card-back.png",
+    "width": 2100,
+    "viewBox": [
+      700,
+      400
+    ],
+    "pixels": [
+      2100,
+      1200
+    ],
+    "alpha": true
+  },
+  {
+    "svg": "brand-sheet.svg",
+    "png": "brand-sheet.png",
+    "width": 4000,
+    "viewBox": [
+      1600,
+      1160
+    ],
+    "pixels": [
+      4000,
+      2900
+    ],
+    "alpha": true
+  }
+]
