@@ -37,4 +37,8 @@ No production accounts or credentials are included. Vercel environment variables
 
 ## Validation
 
+### Deployment connection failures
+
+For `ERR_INVALID_URL` during sign-in, set `APP_URL` to the exact public origin including `https://` (for example `https://dwightsgutters.com`). A bare hostname is invalid. Apply the setting to the affected Vercel environment and redeploy.
+
 `npm test` runs integration tests against an isolated MongoDB replica set and captures emails locally. `npm run build` validates the Next.js production build. Tests do not require Atlas or Resend and never send external emails.
