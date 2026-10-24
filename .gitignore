@@ -6,3 +6,5 @@ out/
 *.log
 .openai/
 screenshots/
+.local/
+.vercel/

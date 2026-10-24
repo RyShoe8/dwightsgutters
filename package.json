@@ -1,1 +1,24 @@
-{"name":"dwights-gutters","version":"0.1.0","private":true,"scripts":{"dev":"next dev --hostname 127.0.0.1 --port 3000","build":"next build","start":"next start --hostname 127.0.0.1 --port 3000"},"dependencies":{"next":"16.4.2","react":"19.3.1","react-dom":"19.3.1"}}
+{
+  "name": "dwights-gutters",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --hostname 127.0.0.1 --port 3000",
+    "build": "next build",
+    "start": "next start --hostname 127.0.0.1 --port 3000",
+    "dev:local": "node scripts/local.mjs",
+    "db:seed": "node --env-file-if-exists=.env.local scripts/seed.mjs",
+    "test": "node --test tests/*.test.mjs"
+  },
+  "dependencies": {
+    "luxon": "^3.7.2",
+    "mongodb": "^7.7.0",
+    "next": "16.4.2",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "mongodb-memory-server": "^11.3.0"
+  }
+}
