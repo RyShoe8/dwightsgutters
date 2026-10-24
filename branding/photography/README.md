@@ -1,0 +1,11 @@
+# Website photography — October 24, 2026
+
+Generated using the built-in image generation tool. These are illustrative residential scenes, not photographs of Dwight, his staff, customers, or completed work. No logo was generated or modified.
+
+Full-resolution masters: `austin-home.png`, `gutter-cleaning.png`, `austin-neighborhood.png` (1536 × 1024). Web-ready derivatives live in `public/assets/` at widths 640, 960, and 1536, WebP quality 84. The shared BrandPhoto component selects the appropriate size and lazily loads below-the-fold photos.
+
+## Prompt set
+
+- **Austin home:** Premium photorealistic architectural editorial photograph, landscape 3:2. Believable single-story Central Texas home with warm pale limestone walls, subtle navy front door, standing seam gray roof, straight white aluminum gutters visible along the eaves, mature live oak framing upper left, native drought tolerant planting and neat walkway. Gentle morning light, blue sky, natural colors, realistic materials, 35mm lens, central/right crop-safe composition. No people, vehicles, logos, signage, lettering, or collage. Illustrative home, not documentary customer work.
+- **Gutter cleaning:** Premium photorealistic editorial photograph, landscape 3:2. Close perspective along a white aluminum K-style gutter on white fascia beneath charcoal shingles on a limestone Texas home. A blue-gloved hand lifting dry oak leaves from the open channel, only hand and short sleeve visible. Straight gutter edges, plausible downspout and moderate debris, soft morning light, shallow depth of field, green oak foliage, navy and warm neutrals, crop-safe central action. No face, body, ladder, lettering, logos, watermarks, montage, or fake company identity.
+- **Austin neighborhood:** Premium photorealistic architectural landscape, 3:2. Quiet Central Texas residential neighborhood from sidewalk level, curving street, mature live oaks, limestone and white siding homes with clean rain gutters, native grasses and sage gardens. Closest roofline and gutter at right, neighborhood receding left. Blue sky, soft late morning light, natural greens and warm limestone, 35mm editorial photography. No recognizable landmark claims, people, cars, house numbers, text, logos, watermarks, or collage. Illustrative, not a documented job.
