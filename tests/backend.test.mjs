@@ -21,7 +21,8 @@ before(async () => {
 after(async () => { if (db) await db.dropDatabase(); if (globalThis.dwightMongo) await (await globalThis.dwightMongo).close(); await repl?.stop(); });
 function payload(startsAt, overrides = {}) { return { requestId: randomUUID(), serviceId: 'gutter-cleaning', startsAt, expectedPriceCents: 15000, name: 'Integration Test', email: 'test@example.com', phone: '', contact: 'Email', address: '123 Test Lane', city: 'Austin', zip: '78701', stories: 'One story', guards: 'No', notes: '', consent: true, ...overrides }; }
 test('seed is closed, unpriced, and idempotent', async () => {
-  assert.equal(await db.collection('admins').countDocuments(), 1);
+  assert.equal(await db.collection('admins').countDocuments(), 2);
+  assert.equal((await db.collection('admins').findOne({ _id: 'ryanschumacher@themediashop.co' })).enabled, true);
   assert.equal((await db.collection('settings').findOne()).enabled, false);
   assert.equal((await db.collection('services').findOne()).priceCents, null);
   await saveService('gutter-cleaning', { name: 'Gutter cleaning', priceCents: 15000, durationMinutes: 120, active: true }, actor);
