@@ -15,9 +15,11 @@ async function call(path, method = 'GET', data, headers = {}) {
   return { status: response.status, data: await response.json(), cookie: response.headers.get('set-cookie') };
 }
 const originalSchedule = await db.collection('settings').findOne({ _id: 'schedule' });
+const originalCoverage = await db.collection('settings').findOne({ _id: 'coverage' });
 const originalService = await db.collection('services').findOne({ _id: 'gutter-cleaning' });
 try {
   assert.equal((await call('admin/config')).status, 401);
+  assert.equal((await call('admin/coverage', 'PUT', { enabledZips: [], revision: 0 })).status, 401);
   assert.equal((await call('auth/request', 'POST', { email: 'dwight@dwightsgutters.com' }, { Origin: 'https://invalid.example' })).status, 403);
   assert.equal((await call('auth/request', 'POST', { email: 'dwight@dwightsgutters.com' })).status, 200);
   const mail = await db.collection('outbox').findOne({ kind: 'login' }, { sort: { createdAt: -1 } });
@@ -33,6 +35,10 @@ try {
   const slotsResponse = await fetch(`${origin}/api/slots/?service=gutter-cleaning&date=${date}`);
   const { slots } = await slotsResponse.json(); assert.ok(slots.length);
   const payload = { requestId: randomUUID(), serviceId: 'gutter-cleaning', startsAt: slots[0].startsAt, expectedPriceCents: 15000, name: 'Local HTTP verification', email: 'local-http@example.com', contact: 'Email', address: '123 Test Lane', city: 'Austin', zip: '78701', stories: 'One story', guards: 'No', notes: 'Local test only. No service requested.', consent: true };
+  assert.equal((await call('admin/coverage', 'PUT', { enabledZips: [], revision: config.coverage.revision })).status, 200);
+  assert.deepEqual((await call('coverage')).data.enabledZips, []);
+  assert.equal((await call('bookings', 'POST', payload)).status, 409);
+  assert.equal((await call('admin/coverage', 'PUT', { enabledZips: config.coverage.enabledZips, revision: config.coverage.revision + 1 })).status, 200);
   const result = await call('bookings', 'POST', payload); assert.equal(result.status, 201, JSON.stringify(result.data)); assert.equal(result.data.emailStatus, 'captured');
   assert.equal((await call('bookings', 'POST', payload)).data.emailStatus, 'captured');
   assert.equal((await call('admin/bookings')).data.total >= 1, true);
@@ -44,6 +50,7 @@ try {
   console.log('HTTP verification passed: authorization, CSRF, magic-link login/replay, pricing, availability, booking, email capture, CRM, cancellation, logout.');
 } finally {
   // Restore the original local configuration, retaining clearly labeled test history.
+  await db.collection('settings').replaceOne({ _id: 'coverage' }, originalCoverage);
   await db.collection('settings').replaceOne({ _id: 'schedule' }, originalSchedule);
   await db.collection('services').replaceOne({ _id: 'gutter-cleaning' }, originalService);
   await client.close();

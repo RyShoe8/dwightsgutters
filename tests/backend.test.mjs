@@ -6,7 +6,7 @@ import { MongoMemoryReplSet } from 'mongodb-memory-server';
 import { DateTime } from 'luxon';
 import { database, seed } from '../lib/db.mjs';
 import { daySlots } from '../lib/schedule.mjs';
-import { createBooking, availableSlots, saveService, saveSchedule, updateBooking, saveCustomer } from '../lib/bookings.mjs';
+import { saveCoverage, createBooking, availableSlots, saveService, saveSchedule, updateBooking, saveCustomer } from '../lib/bookings.mjs';
 import { requestLogin, redeemToken, requireAdmin, hash, assertOrigin } from '../lib/auth.mjs';
 import { flushOutbox, bookingEmail } from '../lib/email.mjs';
 let repl, db;
@@ -23,7 +23,7 @@ function payload(startsAt, overrides = {}) { return { requestId: randomUUID(), s
 test('seed is closed, unpriced, and idempotent', async () => {
   assert.equal(await db.collection('admins').countDocuments(), 2);
   assert.equal((await db.collection('admins').findOne({ _id: 'ryanschumacher@themediashop.co' })).enabled, true);
-  assert.equal((await db.collection('settings').findOne()).enabled, false);
+  assert.equal((await db.collection('settings').findOne({ _id: 'schedule' })).enabled, false);
   assert.equal((await db.collection('services').findOne()).priceCents, null);
   await saveService('gutter-cleaning', { name: 'Gutter cleaning', priceCents: 15000, durationMinutes: 120, active: true }, actor);
   await saveSchedule(config, actor); await seed();
@@ -105,4 +105,23 @@ test('outbox capture is idempotent, escaped email uses approved logo, failed del
   await flushOutbox(); assert.equal(await db.collection('outbox').countDocuments({ kind: 'booking', status: 'captured' }), 4);
   assert.deepEqual(await flushOutbox(), []);
   assert.ok((await readdir('.local/mail')).some(f => f.endsWith('.html')));
+});
+
+test('coverage disables new bookings, preserves history and survives reseeding', async () => {
+  const initial = await db.collection('settings').findOne({ _id: 'coverage' });
+  assert.equal(initial.enabledZips.length, 55);
+  await saveCoverage({ revision: initial.revision, enabledZips: initial.enabledZips.filter(z => z !== '78701') }, actor);
+  await seed();
+  assert.ok(!(await db.collection('settings').findOne({ _id: 'coverage' })).enabledZips.includes('78701'));
+  const before = await db.collection('bookings').countDocuments();
+  const customers = await db.collection('customers').countDocuments();
+  const [slot] = await availableSlots('gutter-cleaning', date);
+  await assert.rejects(createBooking(payload(slot.startsAt, { expectedPriceCents: 17500 })), /not available in this ZIP/);
+  assert.equal(await db.collection('bookings').countDocuments(), before);
+  assert.equal(await db.collection('customers').countDocuments(), customers);
+  assert.equal((await createBooking(winningPayload)).reference, booked.reference);
+  await assert.rejects(saveCoverage({ revision: initial.revision, enabledZips: initial.enabledZips }, actor), /another admin/);
+  await assert.rejects(saveCoverage({ revision: initial.revision + 1, enabledZips: ['99999'] }, actor), /valid ZIP/);
+  await saveCoverage({ revision: initial.revision + 1, enabledZips: initial.enabledZips }, actor);
+  assert.ok((await db.collection('settings').findOne({ _id: 'coverage' })).enabledZips.includes('78701'));
 });

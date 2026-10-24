@@ -4,7 +4,8 @@ import { DateTime } from 'luxon';
 import { ZodError } from 'zod';
 import { database, ensureInitialized } from '../../../lib/db.mjs';
 import { assertOrigin, requireAdmin, requestLogin, redeemToken, cookieName, sessionOptions, hash, limit, safeEqual } from '../../../lib/auth.mjs';
-import { availableSlots, createBooking, saveService, saveSchedule, updateBooking, saveCustomer } from '../../../lib/bookings.mjs';
+import { availableSlots, createBooking, saveService, saveSchedule, saveCoverage, updateBooking, saveCustomer } from '../../../lib/bookings.mjs';
+import { enabledCoverage } from '../../../lib/coverage-data.mjs';
 import { emailReady, flushOutbox } from '../../../lib/email.mjs';
 import { fail } from '../../../lib/validation.mjs';
 import { ZONE } from '../../../lib/schedule.mjs';
@@ -31,12 +32,18 @@ async function handler(request, context) {
     }
     if (method !== 'GET') assertOrigin(request);
     await ensureInitialized();
+    if (route === 'coverage' && method === 'GET') {
+      const { db } = await database();
+      const coverage = await db.collection('settings').findOne({ _id: 'coverage' });
+      return json({ enabledZips: enabledCoverage(coverage), updatedAt: coverage?.updatedAt || null });
+    }
     if (route === 'catalog' && method === 'GET') {
       const { db } = await database();
       const services = await db.collection('services').find({ active: true, priceCents: { $ne: null } }, { projection: { updatedAt: 0 } }).toArray();
       const schedule = await db.collection('settings').findOne({ _id: 'schedule' });
+      const enabledZips = enabledCoverage(await db.collection('settings').findOne({ _id: 'coverage' }));
       const today = DateTime.now().setZone(ZONE);
-      return json({ services, enabled: Boolean(schedule?.enabled && services.length && emailReady()), timezone: ZONE, minDate: today.toISODate(), maxDate: today.plus({ days: schedule?.horizonDays || 60 }).toISODate() });
+      return json({ services, enabledZips, enabled: Boolean(schedule?.enabled && services.length && enabledZips.length && emailReady()), timezone: ZONE, minDate: today.toISODate(), maxDate: today.plus({ days: schedule?.horizonDays || 60 }).toISODate() });
     }
     if (route === 'slots' && method === 'GET') return json({ slots: await availableSlots(url.searchParams.get('service'), url.searchParams.get('date')) });
     if (route === 'bookings' && method === 'POST') {
@@ -66,7 +73,8 @@ async function handler(request, context) {
     if (path[0] !== 'admin') fail(404, 'Not found.');
     const actor = await requireAdmin((await cookies()).get(cookieName)?.value);
     const { db } = await database();
-    if (route === 'admin/config' && method === 'GET') return json({ actor, services: await db.collection('services').find().toArray(), schedule: await db.collection('settings').findOne({ _id: 'schedule' }), emailReady: emailReady() });
+    if (route === 'admin/config' && method === 'GET') return json({ actor, services: await db.collection('services').find().toArray(), schedule: await db.collection('settings').findOne({ _id: 'schedule' }), coverage: await db.collection('settings').findOne({ _id: 'coverage' }), emailReady: emailReady() });
+    if (route === 'admin/coverage' && method === 'PUT') { await saveCoverage(await body(request), actor); return json({ ok: true }); }
     if (route === 'admin/bookings' && method === 'GET') {
       const page = Math.max(0, Math.min(10000, Number(url.searchParams.get('page')) || 0));
       const filter = {}; const status = url.searchParams.get('status');
