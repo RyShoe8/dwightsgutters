@@ -31,7 +31,7 @@ export default function CoverageMap({ enabledZips, selectedZip, onSelect }) {
     layerRef.current = L.geoJSON(boundaries, {
       // Only active ZIPs get boundary outlines. Disabled ZIPs retain the base map.
       filter: feature => active.has(feature.properties.zip),
-      style: { color: '#168ccd', weight: 2, fillColor: '#168ccd', fillOpacity: 0.16 },
+      style: { color: '#f47721', weight: 2, fillColor: '#f47721', fillOpacity: 0.16 },
       onEachFeature(feature, layer) {
         const { zip, label } = feature.properties;
         const tooltip = document.createElement('span'); tooltip.textContent = `${zip} · ${label}`;

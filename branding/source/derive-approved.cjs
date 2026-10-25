@@ -2,7 +2,7 @@
 const sharp=require('C:/Users/rysho/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/sharp');
 const fs=require('fs');const path=require('path');const root=path.resolve(__dirname,'..');
 (async()=>{
- const original=path.join(__dirname,'approved-logo.png');
+ const original=path.join(__dirname,'approved-logo-orange.png');
  const dir=path.join(__dirname,'derived');fs.mkdirSync(dir,{recursive:true});
  const regions={primary:{left:60,top:95,width:1940,height:580},mark:{left:60,top:95,width:590,height:580},wordmark:{left:660,top:130,width:1340,height:460},descriptor:{left:680,top:600,width:1300,height:75}};
  for(const [name,region] of Object.entries(regions)){
