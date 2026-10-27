@@ -1,3 +1,4 @@
+import { saveInquiry, listContacts } from '../../../lib/inquiries.mjs';
 import { cookies } from 'next/headers';
 import { randomUUID } from 'node:crypto';
 import { DateTime } from 'luxon';
@@ -36,6 +37,11 @@ async function handler(request, context) {
       const { db } = await database();
       const coverage = await db.collection('settings').findOne({ _id: 'coverage' });
       return json({ enabledZips: enabledCoverage(coverage), updatedAt: coverage?.updatedAt || null });
+    }
+    if (['inquiries', 'booking-requests'].includes(route) && method === 'POST') {
+      const data = await body(request);
+      await limit('contact-global', 300); await limit('contact:' + String(data.email || '').trim().toLowerCase(), 10);
+      return json(await saveInquiry(data, route === 'booking-requests' ? 'lead' : 'inquiry'), 201);
     }
     if (route === 'catalog' && method === 'GET') {
       const { db } = await database();
@@ -83,10 +89,8 @@ async function handler(request, context) {
       return json({ items: await db.collection('bookings').find(filter, { projection: { fingerprint: 0 } }).sort({ startsAt: -1 }).skip(page * 25).limit(25).toArray(), total: await db.collection('bookings').countDocuments(filter) });
     }
     if (route === 'admin/customers' && method === 'GET') {
-      const query = (url.searchParams.get('q') || '').slice(0, 100).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      const filter = query ? { $or: ['name', 'email', 'phone'].map(key => ({ [key]: { $regex: query, $options: 'i' } })) } : {};
-      const page = Math.max(0, Math.min(10000, Number(url.searchParams.get('page')) || 0));
-      return json({ items: await db.collection('customers').find(filter).sort({ createdAt: -1 }).skip(page * 25).limit(25).toArray(), total: await db.collection('customers').countDocuments(filter) });
+      return json(await listContacts({ kind: ['customers', 'leads', 'inquiries'].includes(url.searchParams.get('kind')) ? url.searchParams.get('kind') : 'customers', search: url.searchParams.get('q') || '', page: Math.max(0, Math.min(10000, Number(url.searchParams.get('page')) || 0)) }));
+
     }
     if (route === 'admin/customers' && method === 'POST') { const id = randomUUID(); await saveCustomer(id, { ...await body(request), create: true }, actor); return json({ id }, 201); }
     if (path[1] === 'customers' && path.length === 3 && method === 'PUT') { const data = await body(request); delete data.create; await saveCustomer(path[2], data, actor); return json({ ok: true }); }

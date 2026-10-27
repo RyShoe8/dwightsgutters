@@ -14,3 +14,5 @@ nav .nav-book,.button{color:var(--navy)}
 .eyebrow,.text-link:hover{color:var(--accent-text)}
 .navy-section .eyebrow,.cta .eyebrow,.light{color:#ffb477}
 .cta h2,.cta .eyebrow{color:var(--navy)}
+
+.promise-strip span{font-size:14px}.promise-strip b{font-size:17px;font-weight:600}.veteran-note{padding-block:18px;margin-block:0;font-size:14px;color:var(--navy)}.review-links{display:flex;flex-wrap:wrap;gap:18px;margin-top:24px}.review-links a{font-weight:700;text-decoration:underline;text-underline-offset:4px}.contact-form fieldset{border:0;padding:0;margin:0;min-width:0}.contact-form legend{font-family:Manrope,Arial,sans-serif;font-size:26px;font-weight:800;margin-bottom:24px}.contact-form label{display:flex;flex-direction:column;gap:8px;margin-bottom:20px;font-weight:600}.contact-form input,.contact-form textarea{width:100%;border:1px solid var(--line);border-radius:5px;padding:12px;background:white;color:var(--navy)}.contact-form .checkbox{flex-direction:row;align-items:flex-start;font-size:14px}.contact-form .checkbox input{width:auto;margin-top:5px}.inquiry-message{white-space:pre-wrap;overflow-wrap:anywhere}

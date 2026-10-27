@@ -125,3 +125,21 @@ test('coverage disables new bookings, preserves history and survives reseeding',
   await saveCoverage({ revision: initial.revision + 1, enabledZips: initial.enabledZips }, actor);
   assert.ok((await db.collection('settings').findOne({ _id: 'coverage' })).enabledZips.includes('78701'));
 });
+
+// Contact submissions are separate from booked customers and never reserve a slot.
+test('inquiries validate callback, reject spam, retry safely and appear only in their category', async () => {
+ const { saveInquiry, listContacts } = await import('../lib/inquiries.mjs');
+ const input = {requestId:randomUUID(), name:'Contact Test',email:'contact@example.com',callback:true,phone:'5125550199',message:'Please call about my gutters.',consent:true};
+ await assert.rejects(saveInquiry({...input,phone:''}));
+ await assert.rejects(saveInquiry({...input,website:'spam'}));
+ await assert.rejects(saveInquiry({...input,consent:false}));
+ await saveInquiry(input); await saveInquiry(input);
+ assert.equal((await listContacts({kind:'inquiries',search:'contact@example.com'})).total,1);
+ assert.equal((await listContacts({kind:'customers',search:'contact@example.com'})).total,0);
+ await saveInquiry({...input,requestId:randomUUID(),email:'request@example.com'},'lead');
+ assert.equal((await listContacts({kind:'leads',search:'request@example.com'})).total,1);
+ assert.equal((await listContacts({kind:'inquiries',search:'request@example.com'})).total,0);
+ const bookedCustomer = await db.collection('customers').findOne();
+ assert.equal((await listContacts({kind:'customers',search:bookedCustomer.email})).total,1);
+ assert.equal((await listContacts({kind:'leads',search:bookedCustomer.email})).total,0);
+});

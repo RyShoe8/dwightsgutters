@@ -1,0 +1,1 @@
+export default function ProfileLinks(){return <div className="profile-links review-links"><a href="https://share.google/lUWf6Nr0oXle8ruty" target="_blank" rel="noopener noreferrer">Read reviews on Google ↗</a><a href="https://www.yelp.com/biz/dwights-gutter-cleaning-service-round-rock" target="_blank" rel="noopener noreferrer">Read reviews on Yelp ↗</a></div>;}
