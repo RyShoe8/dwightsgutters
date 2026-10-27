@@ -143,3 +143,50 @@ test('inquiries validate callback, reject spam, retry safely and appear only in 
  assert.equal((await listContacts({kind:'customers',search:bookedCustomer.email})).total,1);
  assert.equal((await listContacts({kind:'leads',search:bookedCustomer.email})).total,0);
 });
+
+test('email codes share single-use credentials with links and enforce expiry and attempt limits', async () => {
+ const { redeemCode } = await import('../lib/auth.mjs');
+ const email = 'ryanschumacher@themediashop.co';
+ async function latest() {
+  await requestLogin(email);
+  const tokenRecord = await db.collection('loginTokens').findOne({email});
+  const mail = await db.collection('outbox').findOne({kind:'login',to:email},{sort:{createdAt:-1}});
+  const saved = JSON.parse(await readFile(`.local/mail/${mail._id}.json`,'utf8'));
+  return {record:tokenRecord, code:saved.text.match(/page: (\d{8})/)[1], token:saved.text.match(/token=([a-f0-9]+)/)[1]};
+ }
+ let login=await latest();
+ assert.ok(!JSON.stringify(login.record).includes(`"${login.code}"`));
+ const secret=await redeemCode(email,login.code); assert.equal(await requireAdmin(secret),email);
+ await assert.rejects(redeemCode(email,login.code),/invalid or expired/);
+ await assert.rejects(redeemToken(login.token),/invalid or expired/);
+ login=await latest(); await redeemToken(login.token);
+ await assert.rejects(redeemCode(email,login.code),/invalid or expired/);
+ login=await latest();
+ const wrong=login.code==='00000000'?'00000001':'00000000';
+ for(let i=0;i<5;i++)await assert.rejects(redeemCode(email,wrong),/invalid or expired/);
+ await assert.rejects(redeemCode(email,login.code),/invalid or expired/);
+ // Locking the short code does not disable the unguessable emailed link.
+ await redeemToken(login.token);
+ await db.collection('limits').deleteOne({_id:hash(`login-code:${email}:${Math.floor(Date.now() / 900000)}`)});
+ login=await latest();
+ await db.collection('loginTokens').updateOne({_id:login.record._id},{$set:{expiresAt:new Date(0)}});
+ await assert.rejects(redeemCode(email,login.code),/invalid or expired/);
+ login=await latest();
+ await db.collection('admins').updateOne({_id:email},{$set:{enabled:false}});
+ await assert.rejects(redeemToken(login.token),/invalid or expired/);
+ await assert.rejects(redeemCode(email,login.code),/invalid or expired/);
+ await db.collection('admins').updateOne({_id:email},{$set:{enabled:true}});
+});
+
+test('requesting a new email invalidates the previous link and code', async () => {
+ const {redeemCode}=await import('../lib/auth.mjs');
+ await requestLogin(actor);
+ const previous=await db.collection('loginTokens').findOne({email:actor});
+ const mail=await db.collection('outbox').findOne({kind:'login',to:actor},{sort:{createdAt:-1}});
+ const saved=JSON.parse(await readFile(`.local/mail/${mail._id}.json`,'utf8'));
+ await requestLogin(actor);
+ assert.equal(await db.collection('loginTokens').countDocuments({email:actor}),1);
+ assert.equal(await db.collection('loginTokens').findOne({_id:previous._id}),null);
+ await assert.rejects(redeemToken(saved.text.match(/token=([a-f0-9]+)/)[1]),/invalid or expired/);
+ await assert.rejects(redeemCode(actor,saved.text.match(/page: (\d{8})/)[1]),/invalid or expired/);
+});

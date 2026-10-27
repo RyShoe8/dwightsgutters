@@ -4,7 +4,7 @@ import { randomUUID } from 'node:crypto';
 import { DateTime } from 'luxon';
 import { ZodError } from 'zod';
 import { database, ensureInitialized } from '../../../lib/db.mjs';
-import { assertOrigin, requireAdmin, requestLogin, redeemToken, cookieName, sessionOptions, hash, limit, safeEqual } from '../../../lib/auth.mjs';
+import { assertOrigin, requireAdmin, requestLogin, redeemToken, redeemCode, cookieName, sessionOptions, hash, limit, safeEqual } from '../../../lib/auth.mjs';
 import { availableSlots, createBooking, saveService, saveSchedule, saveCoverage, updateBooking, saveCustomer } from '../../../lib/bookings.mjs';
 import { enabledCoverage } from '../../../lib/coverage-data.mjs';
 import { emailReady, flushOutbox } from '../../../lib/email.mjs';
@@ -65,10 +65,11 @@ async function handler(request, context) {
       try { const { db } = await database(); mail = await db.collection('outbox').findOne({ _id: `${booking.reference}-confirmation-customer` }, { projection: { status: 1 } }); } catch {}
       return json({ ...booking, emailStatus: mail?.status || 'queued' }, 201);
     }
-    if (route === 'auth/request' && method === 'POST') { await requestLogin((await body(request)).email); return json({ message: 'If this email has admin access, a sign-in link will arrive shortly.' }); }
-    if (route === 'auth/redeem' && method === 'POST') {
+    if (route === 'auth/request' && method === 'POST') { await requestLogin((await body(request)).email); return json({ message: 'If this email has admin access, a sign-in link and code will arrive shortly.' }); }
+    if (['auth/redeem', 'auth/code'].includes(route) && method === 'POST') {
       await limit('redeem-global', 300);
-      const token = await redeemToken((await body(request)).token);
+      const data = await body(request);
+      const token = route === 'auth/code' ? await redeemCode(data.email, data.code) : await redeemToken(data.token);
       (await cookies()).set(cookieName, token, sessionOptions); return json({ ok: true });
     }
     if (route === 'auth/logout' && method === 'POST') {

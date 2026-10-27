@@ -42,3 +42,7 @@ No production accounts or credentials are included. Vercel environment variables
 For `ERR_INVALID_URL` during sign-in, set `APP_URL` to the exact public origin including `https://` (for example `https://dwightsgutters.com`). A bare hostname is invalid. Apply the setting to the affected Vercel environment and redeploy.
 
 `npm test` runs integration tests against an isolated MongoDB replica set and captures emails locally. `npm run build` validates the Next.js production build. Tests do not require Atlas or Resend and never send external emails.
+
+## Admin sign-in codes
+
+Each sign-in email includes a secure link and an eight-digit code. Enter the code with the same admin email on `/admin/sign-in/`. Both expire in 15 minutes and share a single-use credential: using either invalidates both. Requesting another email replaces the previous link/code. Codes allow five attempts per email issued, with an additional per-address rate limit. The secure link remains usable if code attempts are exhausted. Only enabled admins can redeem either option.
