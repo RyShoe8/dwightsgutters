@@ -190,3 +190,15 @@ test('requesting a new email invalidates the previous link and code', async () =
  await assert.rejects(redeemToken(saved.text.match(/token=([a-f0-9]+)/)[1]),/invalid or expired/);
  await assert.rejects(redeemCode(actor,saved.text.match(/page: (\d{8})/)[1]),/invalid or expired/);
 });
+
+test('review snapshots persist in the backend and reseeding preserves admin updates', async () => {
+ const { getReviews, saveReviews } = await import('../lib/reviews.mjs');
+ const initial = await getReviews();
+ const changed = { sources: initial.sources.map(s => ({...s,count:s.count+1})) };
+ await saveReviews(changed,actor); await seed();
+ assert.deepEqual(await getReviews(),changed);
+ const record = await db.collection('settings').findOne({_id:'reviews'});
+ assert.equal(record.updatedBy,actor);
+ await saveReviews({sources:[]},actor);
+ assert.deepEqual(await getReviews(),{sources:[]});
+});

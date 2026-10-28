@@ -1,4 +1,6 @@
 import { saveInquiry, listContacts } from '../../../lib/inquiries.mjs';
+import { getReviews, saveReviews } from '../../../lib/reviews.mjs';
+import { initialReviews } from '../../../lib/reviewSnapshot.mjs';
 import { cookies } from 'next/headers';
 import { randomUUID } from 'node:crypto';
 import { DateTime } from 'luxon';
@@ -26,6 +28,11 @@ async function handler(request, context) {
   try {
     const { path } = await context.params; const route = path.join('/'); const method = request.method;
     const url = new URL(request.url);
+    if (route === 'reviews' && method === 'GET') {
+      // The verified launch snapshot keeps testimonials visible during a DB outage.
+      try { return json(await getReviews()); }
+      catch { return json(initialReviews); }
+    }
     if (route === 'cron/email' && ['GET', 'POST'].includes(method)) {
       if (!safeEqual(request.headers.get('authorization'), process.env.CRON_SECRET ? `Bearer ${process.env.CRON_SECRET}` : '')) fail(401, 'Unauthorized');
       await ensureInitialized();
@@ -80,6 +87,8 @@ async function handler(request, context) {
     if (path[0] !== 'admin') fail(404, 'Not found.');
     const actor = await requireAdmin((await cookies()).get(cookieName)?.value);
     const { db } = await database();
+    if (route === 'admin/reviews' && method === 'GET') return json(await getReviews());
+    if (route === 'admin/reviews' && method === 'PUT') return json(await saveReviews(await body(request), actor));
     if (route === 'admin/config' && method === 'GET') return json({ actor, services: await db.collection('services').find().toArray(), schedule: await db.collection('settings').findOne({ _id: 'schedule' }), coverage: await db.collection('settings').findOne({ _id: 'coverage' }), emailReady: emailReady() });
     if (route === 'admin/coverage' && method === 'PUT') { await saveCoverage(await body(request), actor); return json({ ok: true }); }
     if (route === 'admin/bookings' && method === 'GET') {

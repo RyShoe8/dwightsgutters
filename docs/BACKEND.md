@@ -46,3 +46,13 @@ For `ERR_INVALID_URL` during sign-in, set `APP_URL` to the exact public origin i
 ## Admin sign-in codes
 
 Each sign-in email includes a secure link and an eight-digit code. Enter the code with the same admin email on `/admin/sign-in/`. Both expire in 15 minutes and share a single-use credential: using either invalidates both. Requesting another email replaces the previous link/code. Codes allow five attempts per email issued, with an additional per-address rate limit. The secure link remains usable if code attempts are exhausted. Only enabled admins can redeem either option.
+
+## Customer reviews
+
+The homepage displays three Google reviews verified on October 28, 2026, with author attribution, source links, and Google's verified rating of 5.0 from seven reviews. `lib/reviewSnapshot.mjs` is the initial snapshot, not an automatically refreshed feed. Yelp remains a profile link until its rating/review can be verified; it is not included in the summary.
+
+Snapshots live in MongoDB `settings` under `_id: reviews`. Initialization inserts the launch snapshot only if absent. `GET /api/reviews/` reads it, falling back to the dated launch snapshot during database failure. Authenticated admins can read or replace the full snapshot through `GET`/`PUT /api/admin/reviews/`; PUT uses the existing session cookie, same-origin protection, size limit, and schema validation. Review text is rendered as text, and attribution links are restricted to Google/Yelp reviewer URLs. To remove all displayed reviews, save `{ "sources": [] }`.
+
+A snapshot contains `sources`, each with `id` (`google` or `yelp`), `rating`, total platform `count`, `verifiedAt` (`YYYY-MM-DD`), and selected `reviews` (`id`, `author`, `authorUrl`, integer `rating`, `text`). Totals must come from the full source rating/count, not the selected review cards. When both sources have verified data, the UI shows the count-weighted approximate combined rating and each source's individual rating/count. Platform averages are rounded, so this is not an exact recomputation of all individual star ratings.
+
+Automated refresh is **not configured**. On October 28, the Nucleas VPS browser worker hit Google's unusual-traffic page; Yelp showed device verification in the browser. No CAPTCHA or access-control bypass was attempted. Do not claim that this snapshot is live or automatically remove reviews based on a blocked/incomplete scrape. A future working importer must handle review edits/deletions, retain attribution, validate source totals, and update `verifiedAt` only after successful verification.
