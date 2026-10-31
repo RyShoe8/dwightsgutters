@@ -173,3 +173,13 @@ test('appointment changes offer only dates at least 48 hours out',async()=>{
  const b=await book(30);const details=await getChangeDetails(b.token);
  assert.ok(details.dates.length);assert.ok(details.dates.every(d=>d>=DateTime.now().setZone('America/Chicago').plus({hours:48}).toISODate()));
 });
+test('two-story homes use the two-story price, taller homes are refused, and add-ons stack on top',async()=>{
+ const cleaning=await db.collection('services').findOne({_id:'gutter-cleaning'});assert.equal(cleaning.twoStoryPriceCents,30000);
+ const [slot]=await availableSlots('gutter-cleaning',date(35),['downspout-concern']);
+ const input={requestId:randomUUID(),serviceId:'gutter-cleaning',addOnIds:['downspout-concern'],startsAt:slot.startsAt,expectedPriceCents:cleaning.priceCents+4000,name:'Two Story',email:`two-${randomUUID()}@example.com`,phone:'',contact:'Email',address:'2 Tall Rd',city:'Austin',zip:'78701',stories:'Two stories',guards:'No',notes:'',consent:true};
+ await assert.rejects(createBooking(input),/price has changed/);
+ const receipt=await createBooking({...input,requestId:randomUUID(),expectedPriceCents:34000});assert.equal(receipt.priceCents,34000);
+ await assert.rejects(createBooking({...input,requestId:randomUUID(),stories:'Three or more / unsure'}),/two-story/);
+ await saveService('gutter-cleaning',{name:cleaning.name,priceCents:cleaning.priceCents,twoStoryPriceCents:null,durationMinutes:cleaning.durationMinutes,active:true},actor);
+ await seed();assert.equal((await db.collection('services').findOne({_id:'gutter-cleaning'})).twoStoryPriceCents,null);
+});
