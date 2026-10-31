@@ -10,11 +10,15 @@ export default function AdminSignIn() {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const codeInput = useRef(null);
+  const redeemed = useRef('');
 
   useEffect(() => {
     const readToken = () => {
       const value = new URLSearchParams(location.hash.slice(1)).get('token');
-      if (value) { setToken(value); setMessage(''); history.replaceState(null, '', location.pathname); }
+      if (!value) return;
+      setToken(value); setMessage(''); history.replaceState(null, '', location.pathname);
+      // Links are single-use; guard against React running this effect twice.
+      if (redeemed.current !== value) { redeemed.current = value; send('redeem', value); }
     };
     readToken();
     window.addEventListener('hashchange', readToken);
@@ -22,12 +26,12 @@ export default function AdminSignIn() {
   }, []);
   useEffect(() => { if (step === 'code' && !token) codeInput.current?.focus(); }, [step, token]);
 
-  async function send(action) {
+  async function send(action, linkToken) {
     setBusy(true); setMessage(''); setError('');
     try {
       const response = await fetch(`/api/auth/${action}/`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(action === 'redeem' ? { token } : action === 'code' ? { email, code } : { email }),
+        body: JSON.stringify(action === 'redeem' ? { token: linkToken } : action === 'code' ? { email, code } : { email }),
       });
       const data = await response.json();
       if (!response.ok) throw Error(data.error);
@@ -40,8 +44,8 @@ export default function AdminSignIn() {
   return <main id="main" className="section container"><div className="admin-login booking-card">
     <p className="eyebrow">DWIGHT’S GUTTERS · ADMIN</p>
     <h1>{!token && step === 'code' ? 'Check your email.' : 'Welcome back.'}</h1>
-    <p>{token ? 'Confirm below to securely open your admin workspace.' : step === 'code' ? `Enter the 8-digit code sent to ${email}, or use the secure link in that email.` : 'We’ll email you a secure sign-in link and an 8-digit code. Use whichever is easier.'}</p>
-    {token ? <form onSubmit={e => { e.preventDefault(); send('redeem'); }}><button className="button" disabled={busy}>{busy ? 'Please wait…' : 'Sign in to admin →'}</button></form>
+    <p>{token ? (error ? 'This link couldn’t sign you in.' : 'Signing you in…') : step === 'code' ? `Enter the 8-digit code sent to ${email}, or use the secure link in that email.` : 'We’ll email you a secure sign-in link and an 8-digit code. Use whichever is easier.'}</p>
+    {token ? null
       : step === 'email' ? <form onSubmit={e => { e.preventDefault(); send('request'); }}>
         <label>Admin email<input name="email" type="email" autoComplete="email" required disabled={busy} value={email} onChange={e => setEmail(e.target.value)} placeholder="dwight@dwightsgutters.com"/></label>
         <button className="button" disabled={busy}>{busy ? 'Please wait…' : 'Email me a link and code →'}</button>
@@ -55,6 +59,6 @@ export default function AdminSignIn() {
       </>}
     {message && <p className="notice" role="status">{message}</p>}
     {error && <p className="notice error" role="alert">{error}</p>}
-    {token && <p><a href="/admin/sign-in/">Use a code or request a new email</a></p>}
+    {token && error && <p><a href="/admin/sign-in/">Use a code or request a new email</a></p>}
   </div></main>;
 }

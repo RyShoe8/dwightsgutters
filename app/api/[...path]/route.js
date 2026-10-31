@@ -1,6 +1,9 @@
 import { saveInquiry, listContacts } from '../../../lib/inquiries.mjs';
 import { getReviews, saveReviews } from '../../../lib/reviews.mjs';
 import { initialReviews } from '../../../lib/reviewSnapshot.mjs';
+import { getStaff, saveStaff } from '../../../lib/staff.mjs';
+import { getPayments, savePayments } from '../../../lib/payments.mjs';
+import { getChangeDetails, changeAppointment } from '../../../lib/reschedule.mjs';
 import { cookies } from 'next/headers';
 import { randomUUID } from 'node:crypto';
 import { DateTime } from 'luxon';
@@ -40,6 +43,15 @@ async function handler(request, context) {
     }
     if (method !== 'GET') assertOrigin(request);
     await ensureInitialized();
+    if (['reschedule/details', 'reschedule/change'].includes(route) && method === 'POST') {
+      const data = await body(request);
+      await limit('reschedule-global', 300);
+      await limit(`reschedule:${hash(String(data.token || '').slice(0, 100))}`, 60, 900);
+      if (route === 'reschedule/details') return json(await getChangeDetails(data.token, data.date));
+      const changed = await changeAppointment(data);
+      try { await flushOutbox({ ids: changed.ids, limit: 2 }); } catch { console.error('Rescheduling email processing deferred to outbox retry.'); }
+      return json({ when: changed.when });
+    }
     if (route === 'coverage' && method === 'GET') {
       const { db } = await database();
       const coverage = await db.collection('settings').findOne({ _id: 'coverage' });
@@ -85,18 +97,23 @@ async function handler(request, context) {
       jar.set(cookieName, '', { ...sessionOptions, maxAge: 0 }); return json({ ok: true });
     }
     if (path[0] !== 'admin') fail(404, 'Not found.');
-    const actor = await requireAdmin((await cookies()).get(cookieName)?.value);
+    const jar = await cookies(); const secret = jar.get(cookieName)?.value;
+    const actor = await requireAdmin(secret);
+    jar.set(cookieName, secret, sessionOptions);
     const { db } = await database();
     if (route === 'admin/reviews' && method === 'GET') return json(await getReviews());
     if (route === 'admin/reviews' && method === 'PUT') return json(await saveReviews(await body(request), actor));
-    if (route === 'admin/config' && method === 'GET') return json({ actor, services: await db.collection('services').find().toArray(), schedule: await db.collection('settings').findOne({ _id: 'schedule' }), coverage: await db.collection('settings').findOne({ _id: 'coverage' }), emailReady: emailReady() });
+    if (route === 'admin/config' && method === 'GET') return json({ actor, staff: await getStaff(db), payments: await getPayments(db), services: await db.collection('services').find().toArray(), schedule: await db.collection('settings').findOne({ _id: 'schedule' }), coverage: await db.collection('settings').findOne({ _id: 'coverage' }), emailReady: emailReady() });
+    if (route === 'admin/payments' && method === 'GET') return json(await getPayments(db));
+    if (route === 'admin/payments' && method === 'PUT') return json(await savePayments(await body(request), actor));
+    if (route === 'admin/staff' && method === 'PUT') return json(await saveStaff(await body(request), actor));
     if (route === 'admin/coverage' && method === 'PUT') { await saveCoverage(await body(request), actor); return json({ ok: true }); }
     if (route === 'admin/bookings' && method === 'GET') {
       const page = Math.max(0, Math.min(10000, Number(url.searchParams.get('page')) || 0));
       const filter = {}; const status = url.searchParams.get('status');
       if (['confirmed', 'completed', 'cancelled'].includes(status)) filter.status = status;
       if (url.searchParams.get('customerId')) filter.customerId = url.searchParams.get('customerId');
-      return json({ items: await db.collection('bookings').find(filter, { projection: { fingerprint: 0 } }).sort({ startsAt: -1 }).skip(page * 25).limit(25).toArray(), total: await db.collection('bookings').countDocuments(filter) });
+      return json({ items: await db.collection('bookings').find(filter, { projection: { fingerprint: 0, rescheduleTokenHash: 0 } }).sort({ startsAt: -1 }).skip(page * 25).limit(25).toArray(), total: await db.collection('bookings').countDocuments(filter) });
     }
     if (route === 'admin/customers' && method === 'GET') {
       return json(await listContacts({ kind: ['customers', 'leads', 'inquiries'].includes(url.searchParams.get('kind')) ? url.searchParams.get('kind') : 'customers', search: url.searchParams.get('q') || '', page: Math.max(0, Math.min(10000, Number(url.searchParams.get('page')) || 0)) }));
@@ -106,8 +123,14 @@ async function handler(request, context) {
     if (path[1] === 'customers' && path.length === 3 && method === 'PUT') { const data = await body(request); delete data.create; await saveCustomer(path[2], data, actor); return json({ ok: true }); }
     if (path[1] === 'services' && path.length === 3 && method === 'PUT') { await saveService(path[2], await body(request), actor); return json({ ok: true }); }
     if (route === 'admin/schedule' && method === 'PUT') { await saveSchedule(await body(request), actor); return json({ ok: true }); }
-    if (path[1] === 'bookings' && path.length === 3 && method === 'PATCH') { await updateBooking(path[2], (await body(request)).status, actor); await flushOutbox({ ids: [`${path[2]}-cancellation-customer`, `${path[2]}-cancellation-admin`], limit: 2 }); return json({ ok: true }); }
-    if (route === 'admin/email' && method === 'GET') return json({ items: await db.collection('outbox').find({ kind: 'booking' }, { projection: { html: 0, text: 0 } }).sort({ createdAt: -1 }).limit(50).toArray() });
+    if (path[1] === 'bookings' && path.length === 3 && method === 'PATCH') {
+      const data = await body(request);
+      const result = await updateBooking(path[2], data.status, actor, data);
+      const ids = data.status === 'completed' ? [`${path[2]}-invoice-customer`] : [`${path[2]}-cancellation-customer`, `${path[2]}-cancellation-admin`];
+      try { await flushOutbox({ ids, limit: 2 }); } catch { console.error('Booking email processing deferred to outbox retry.'); }
+      return json({ ok: true, ...result });
+    }
+    if (route === 'admin/email' && method === 'GET') return json({ items: await db.collection('outbox').find({ kind: { $in: ['booking', 'invoice'] } }, { projection: { html: 0, text: 0 } }).sort({ createdAt: -1 }).limit(50).toArray() });
     if (route === 'admin/email/retry' && method === 'POST') return json({ results: await flushOutbox() });
     fail(404, 'Not found.');
   } catch (error) {

@@ -39,6 +39,11 @@ test('admin access requires one-time token; expiry, replay, revocation and CSRF 
   const token = saved.text.match(/token=([a-f0-9]+)/)[1];
   const secret = await redeemToken(token); assert.equal(await requireAdmin(secret), actor);
   await assert.rejects(redeemToken(token), /invalid or expired/);
+  // Sessions last 90 days and renew with use.
+  assert.ok((await db.collection('sessions').findOne({ _id: hash(secret) })).expiresAt > new Date(Date.now() + 89 * 86400000));
+  await db.collection('sessions').updateOne({ _id: hash(secret) }, { $set: { expiresAt: new Date(Date.now() + 86400000) } });
+  assert.equal(await requireAdmin(secret), actor);
+  assert.ok((await db.collection('sessions').findOne({ _id: hash(secret) })).expiresAt > new Date(Date.now() + 89 * 86400000));
   await db.collection('sessions').updateOne({ _id: hash(secret) }, { $set: { expiresAt: new Date(0) } });
   await assert.rejects(requireAdmin(secret), /sign in/);
   await requestLogin('outsider@example.com'); assert.equal(await db.collection('outbox').countDocuments({ kind: 'login' }), 1);
