@@ -3,6 +3,7 @@ import { getReviews, saveReviews } from '../../../lib/reviews.mjs';
 import { initialReviews } from '../../../lib/reviewSnapshot.mjs';
 import { getStaff, saveStaff } from '../../../lib/staff.mjs';
 import { getPayments, savePayments } from '../../../lib/payments.mjs';
+import { stripeReady } from '../../../lib/stripe.mjs';
 import { getChangeDetails, changeAppointment } from '../../../lib/reschedule.mjs';
 import { cookies } from 'next/headers';
 import { randomUUID } from 'node:crypto';
@@ -10,7 +11,7 @@ import { DateTime } from 'luxon';
 import { ZodError } from 'zod';
 import { database, ensureInitialized } from '../../../lib/db.mjs';
 import { assertOrigin, requireAdmin, requestLogin, redeemToken, redeemCode, cookieName, sessionOptions, hash, limit, safeEqual } from '../../../lib/auth.mjs';
-import { availableSlots, createBooking, saveService, saveSchedule, saveCoverage, updateBooking, saveCustomer } from '../../../lib/bookings.mjs';
+import { availableSlots, availableDates, createBooking, saveService, saveSchedule, saveCoverage, updateBooking, saveCustomer } from '../../../lib/bookings.mjs';
 import { enabledCoverage } from '../../../lib/coverage-data.mjs';
 import { emailReady, flushOutbox } from '../../../lib/email.mjs';
 import { fail } from '../../../lib/validation.mjs';
@@ -64,13 +65,16 @@ async function handler(request, context) {
     }
     if (route === 'catalog' && method === 'GET') {
       const { db } = await database();
-      const services = await db.collection('services').find({ active: true, priceCents: { $ne: null } }, { projection: { updatedAt: 0 } }).toArray();
+      const offered = await db.collection('services').find({ active: true, priceCents: { $ne: null } }, { projection: { updatedAt: 0 } }).toArray();
+      const services = offered.filter(s => s.kind !== 'addon'), addOns = offered.filter(s => s.kind === 'addon');
       const schedule = await db.collection('settings').findOne({ _id: 'schedule' });
       const enabledZips = enabledCoverage(await db.collection('settings').findOne({ _id: 'coverage' }));
       const today = DateTime.now().setZone(ZONE);
-      return json({ services, enabledZips, enabled: Boolean(schedule?.enabled && services.length && enabledZips.length && emailReady()), timezone: ZONE, minDate: today.toISODate(), maxDate: today.plus({ days: schedule?.horizonDays || 60 }).toISODate() });
+      return json({ services, addOns, enabledZips, enabled: Boolean(schedule?.enabled && services.length && enabledZips.length && emailReady()), timezone: ZONE, minDate: today.toISODate(), maxDate: today.plus({ days: schedule?.horizonDays || 60 }).toISODate() });
     }
-    if (route === 'slots' && method === 'GET') return json({ slots: await availableSlots(url.searchParams.get('service'), url.searchParams.get('date')) });
+    const addOnIds = (url.searchParams.get('addOns') || '').split(',').filter(Boolean).slice(0, 5);
+    if (route === 'slots' && method === 'GET') return json({ slots: await availableSlots(url.searchParams.get('service'), url.searchParams.get('date'), addOnIds) });
+    if (route === 'dates' && method === 'GET') return json({ dates: await availableDates(url.searchParams.get('service'), addOnIds) });
     if (route === 'bookings' && method === 'POST') {
       const data = await body(request);
       await limit('booking-global', 300);
@@ -103,7 +107,7 @@ async function handler(request, context) {
     const { db } = await database();
     if (route === 'admin/reviews' && method === 'GET') return json(await getReviews());
     if (route === 'admin/reviews' && method === 'PUT') return json(await saveReviews(await body(request), actor));
-    if (route === 'admin/config' && method === 'GET') return json({ actor, staff: await getStaff(db), payments: await getPayments(db), services: await db.collection('services').find().toArray(), schedule: await db.collection('settings').findOne({ _id: 'schedule' }), coverage: await db.collection('settings').findOne({ _id: 'coverage' }), emailReady: emailReady() });
+    if (route === 'admin/config' && method === 'GET') return json({ actor, staff: await getStaff(db), payments: await getPayments(db), services: await db.collection('services').find().toArray(), schedule: await db.collection('settings').findOne({ _id: 'schedule' }), coverage: await db.collection('settings').findOne({ _id: 'coverage' }), emailReady: emailReady(), stripeReady: stripeReady() });
     if (route === 'admin/payments' && method === 'GET') return json(await getPayments(db));
     if (route === 'admin/payments' && method === 'PUT') return json(await savePayments(await body(request), actor));
     if (route === 'admin/staff' && method === 'PUT') return json(await saveStaff(await body(request), actor));
