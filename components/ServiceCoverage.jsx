@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import CoverageMap from './CoverageMap';
 import { coverageGroups } from '../lib/coverage-data.mjs';
+import { citySlugForArea } from '../lib/cities.mjs';
 export default function ServiceCoverage() {
   const [coverage, setCoverage] = useState(null), [error, setError] = useState(''), [query, setQuery] = useState('');
   const refresh = useCallback(async (signal) => {
@@ -17,7 +18,7 @@ export default function ServiceCoverage() {
     {!coverage && !error && <p role="status">Checking current coverage…</p>}
     <CoverageMap enabledZips={coverage?.enabledZips}/>
     <div className="community-search"><label>Find your city or neighborhood<input type="search" value={query} onChange={e => setQuery(e.target.value)} placeholder="Try Round Rock or South Austin" maxLength={100}/></label></div>
-    <div className="coverage-directory">{groups.map(group => <section className="coverage-directory-group" key={group.name}><h3>{group.name}</h3><ul className="community-list">{group.areas.map(area => <li key={area.name}>{area.name}</li>)}</ul></section>)}</div>
+    <div className="coverage-directory">{groups.map(group => <section className="coverage-directory-group" key={group.name}><h3>{group.name}</h3><ul className="community-list">{group.areas.map(area => <li key={area.name}>{citySlugForArea(area.name) ? <a href={`/gutter-cleaning/${citySlugForArea(area.name)}/`}>{area.name}</a> : area.name}</li>)}</ul></section>)}</div>
     {!groups.length && <p role="status">No matching community. Email Dwight to ask about nearby coverage.</p>}
     <p className="fine">Availability varies within each community. The map shows approximate service boundaries; your address is checked when you book. Near the edge of our coverage? <a href="mailto:dwight@dwightsgutters.com">Contact Dwight</a> for help.</p>
     <a className="button" href="/book/">Book a Cleaning →</a>

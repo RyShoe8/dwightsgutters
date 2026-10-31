@@ -35,7 +35,7 @@ export default function Page() {
     <p>To the extent Texas law allows, our total liability for any claim related to a service is limited to the amount you paid for that service. We aren’t liable for indirect or consequential losses. Nothing in these terms limits liability that can’t be limited by law.</p>
 
     <h2>Your information</h2>
-    <p>When you book or contact us, we collect your name, email address, phone number, property address, and any notes you share. We use this information only to schedule and provide your service, send booking and invoice emails, and respond to you. We don’t sell it or use it for advertising. Our website host, database provider, and email service process it on our behalf. We also use Google Analytics to understand how visitors use the website. Learn more in our <a href="/cookie-policy/">Cookie Policy</a>.</p>
+    <p>When you book or contact us, we collect your name, email address, phone number, property address, and any notes you share. We use this information only to schedule and provide your service, send booking and invoice emails, and respond to you. We don’t sell it or use it for advertising. Our website host, database provider, and email service process it on our behalf. We also use Google Analytics to understand how visitors use the website. Learn more in our <a href="/privacy-policy/">Privacy Policy</a> and <a href="/cookie-policy/">Cookie Policy</a>.</p>
 
     <h2>Website content</h2>
     <p>Photos of homes on this site are illustrative and aren’t a gallery of completed jobs. Reviews are shared from Google and Yelp with attribution.</p>

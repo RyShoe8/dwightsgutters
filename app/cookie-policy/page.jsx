@@ -39,7 +39,7 @@ export default function Page() {
     <p>You can block or delete cookies in your browser settings, or use the opt-out add-on above to stop Google Analytics. Blocking cookies won’t affect browsing or booking on this site. Blocking the sign-in cookie only prevents signing in to the admin area.</p>
 
     <h2>Changes to this policy</h2>
-    <p>If we change how the site uses cookies, we’ll update this page and its effective date. See our <a href="/terms/">Terms of Service</a> for how we handle the information you share with us.</p>
+    <p>If we change how the site uses cookies, we’ll update this page and its effective date. See our <a href="/privacy-policy/">Privacy Policy</a> for how we handle the information you share with us.</p>
 
     <h2>Contact</h2>
     <p>Questions? Email <a href="mailto:dwight@dwightsgutters.com">dwight@dwightsgutters.com</a> or call or text <a href={businessPhoneHref}>{businessPhone}</a>.</p>

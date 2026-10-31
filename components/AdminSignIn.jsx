@@ -60,6 +60,6 @@ export default function AdminSignIn() {
     {message && <p className="notice" role="status">{message}</p>}
     {error && <p className="notice error" role="alert">{error}</p>}
     {token && error && <p><a href="/admin/sign-in/">Use a code or request a new email</a></p>}
-    <p className="fine"><a href="/terms/">Terms of Service</a> · <a href="/cookie-policy/">Cookie Policy</a></p>
+    <p className="fine"><a href="/terms/">Terms of Service</a> · <a href="/privacy-policy/">Privacy Policy</a> · <a href="/cookie-policy/">Cookie Policy</a></p>
   </div></main>;
 }
