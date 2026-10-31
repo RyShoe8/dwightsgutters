@@ -12,7 +12,7 @@ export default function Page() {
     <p>Online booking is available for addresses in our active service area. Your appointment is reserved once the booking confirmation appears on screen, and we’ll email a confirmation with your appointment details. All appointment times are Austin (Central) time. Please give accurate details about your property, including its height, access, and any gutter guards, so we can plan the visit.</p>
 
     <h2>Prices</h2>
-    <p>Prices shown when you book are starting prices. They depend on the service, your home’s height, and any add-ons you choose. Dwight will confirm the final scope and price with you before work begins. If the job turns out larger or smaller than described, the final price may change, and we’ll agree on it with you first. Final prices include any applicable taxes.</p>
+    <p>Prices shown when you book are starting prices. They depend on the service, your home’s height, and any add-ons you choose. Gutter repair is billed by the hour with a minimum charge, both shown when you book. The final repair charge depends on how long the work takes. Dwight will confirm the final scope and price with you before work begins. If the job turns out larger or smaller than described, the final price may change, and we’ll agree on it with you first. Final prices include any applicable taxes.</p>
 
     <h2>Changing or cancelling an appointment</h2>
     <p>You can change your appointment online using the link in your confirmation email up to 48 hours before it starts. Your new time must also be at least 48 hours away. For changes inside that window, or to cancel, contact Dwight as early as you can.</p>

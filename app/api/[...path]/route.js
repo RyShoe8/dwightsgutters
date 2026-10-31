@@ -66,7 +66,7 @@ async function handler(request, context) {
     if (route === 'catalog' && method === 'GET') {
       const { db } = await database();
       const offered = await db.collection('services').find({ active: true, priceCents: { $ne: null } }, { projection: { updatedAt: 0 } }).toArray();
-      const services = offered.filter(s => s.kind !== 'addon'), addOns = offered.filter(s => s.kind === 'addon');
+      const services = offered.filter(s => s.kind !== 'addon'), addOns = offered.filter(s => s.appliesTo?.length);
       const schedule = await db.collection('settings').findOne({ _id: 'schedule' });
       const enabledZips = enabledCoverage(await db.collection('settings').findOne({ _id: 'coverage' }));
       const today = DateTime.now().setZone(ZONE);

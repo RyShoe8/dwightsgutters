@@ -183,3 +183,23 @@ test('two-story homes use the two-story price, taller homes are refused, and add
  await saveService('gutter-cleaning',{name:cleaning.name,priceCents:cleaning.priceCents,twoStoryPriceCents:null,durationMinutes:cleaning.durationMinutes,active:true},actor);
  await seed();assert.equal((await db.collection('services').findOne({_id:'gutter-cleaning'})).twoStoryPriceCents,null);
 });
+test('gutter repair is hourly with a minimum, books alone or as a cleaning add-on, and records hours on the invoice',async()=>{
+ const payments=await getPayments();await savePayments({...payments,stripe:{...payments.stripe,enabled:false}},actor);
+ const seeded=await db.collection('services').findOne({_id:'gutter-repair'});assert.equal(seeded.hourlyRateCents,5000);assert.deepEqual(seeded.appliesTo,['gutter-cleaning','seasonal-upkeep']);
+ await saveService('gutter-repair',{name:'Gutter repair',priceCents:5000,hourlyRateCents:5000,durationMinutes:60,active:true,appliesTo:['gutter-cleaning','seasonal-upkeep']},actor);
+ const cleaning=await db.collection('services').findOne({_id:'gutter-cleaning'});
+ const base={name:'Repair Customer',phone:'',contact:'Email',address:'5 Fix St',city:'Austin',zip:'78701',stories:'Two stories',guards:'No',notes:'',consent:true};
+ const [alone]=await availableSlots('gutter-repair',date(40));
+ const solo=await createBooking({...base,requestId:randomUUID(),email:`repair-${randomUUID()}@example.com`,serviceId:'gutter-repair',startsAt:alone.startsAt,expectedPriceCents:5000});
+ const stored=await db.collection('bookings').findOne({_id:solo.reference});assert.equal(stored.service.hourlyRateCents,5000);
+ const confirmation=await db.collection('outbox').findOne({_id:`${solo.reference}-confirmation-customer`});assert.ok(confirmation.text.includes('Gutter repair rate: $50.00/hour, $50.00 minimum'));
+ const [slot]=await availableSlots('gutter-cleaning',date(41),['gutter-repair']);
+ const combo=await createBooking({...base,requestId:randomUUID(),email:`combo-${randomUUID()}@example.com`,serviceId:'gutter-cleaning',addOnIds:['gutter-repair'],startsAt:slot.startsAt,expectedPriceCents:(cleaning.twoStoryPriceCents??cleaning.priceCents)+5000});
+ const comboStored=await db.collection('bookings').findOne({_id:combo.reference});assert.equal(comboStored.service.name,`${cleaning.name} + Gutter repair`);assert.equal(comboStored.service.addOns[0].hourlyRateCents,5000);
+ await assert.rejects(availableSlots('gutter-repair',date(42),['gutter-repair']),/add-on/);
+ await db.collection('bookings').updateOne({_id:solo.reference},{$set:{startsAt:new Date(Date.now()-3600000)}});
+ await assert.rejects(updateBooking(solo.reference,'completed',actor,{totalCents:12500,hours:2.1}),/quarter-hour/);
+ const done=await updateBooking(solo.reference,'completed',actor,{totalCents:12500,hours:2.5});
+ assert.deepEqual(done.invoice.hourly,{name:'Gutter repair',hours:2.5,hourlyRateCents:5000});
+ const invoice=await db.collection('outbox').findOne({_id:`${solo.reference}-invoice-customer`});assert.ok(invoice.text.includes('Gutter repair time: 2.5 hours at $50.00/hour'));assert.ok(invoice.text.includes('$125.00'));
+});
