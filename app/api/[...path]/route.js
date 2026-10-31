@@ -3,7 +3,7 @@ import { getReviews, saveReviews } from '../../../lib/reviews.mjs';
 import { initialReviews } from '../../../lib/reviewSnapshot.mjs';
 import { getStaff, saveStaff } from '../../../lib/staff.mjs';
 import { getPayments, savePayments } from '../../../lib/payments.mjs';
-import { stripeReady } from '../../../lib/stripe.mjs';
+import { stripeReady, verifyStripeEvent } from '../../../lib/stripe.mjs';
 import { getChangeDetails, changeAppointment } from '../../../lib/reschedule.mjs';
 import { cookies } from 'next/headers';
 import { randomUUID } from 'node:crypto';
@@ -11,7 +11,7 @@ import { DateTime } from 'luxon';
 import { ZodError } from 'zod';
 import { database, ensureInitialized } from '../../../lib/db.mjs';
 import { assertOrigin, requireAdmin, requestLogin, redeemToken, redeemCode, cookieName, sessionOptions, hash, limit, safeEqual } from '../../../lib/auth.mjs';
-import { availableSlots, availableDates, createBooking, saveService, saveSchedule, saveCoverage, updateBooking, saveCustomer } from '../../../lib/bookings.mjs';
+import { availableSlots, availableDates, createBooking, saveService, saveSchedule, saveCoverage, updateBooking, saveCustomer, recordPayment, handleStripeEvent } from '../../../lib/bookings.mjs';
 import { enabledCoverage } from '../../../lib/coverage-data.mjs';
 import { emailReady, flushOutbox } from '../../../lib/email.mjs';
 import { fail } from '../../../lib/validation.mjs';
@@ -20,13 +20,17 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 const json = (value, status = 200) => Response.json(value, { status, headers: { 'Cache-Control': 'no-store' } });
-async function body(request) {
+async function text(request, limit = 65536) {
   if (!request.headers.get('content-type')?.includes('application/json')) fail(415, 'Send JSON data.');
   const reader = request.body?.getReader();
   if (!reader) fail(400, 'Missing request body.');
   const chunks = []; let size = 0;
-  while (true) { const { done, value } = await reader.read(); if (done) break; size += value.length; if (size > 65536) { await reader.cancel(); fail(413, 'Request is too large.'); } chunks.push(Buffer.from(value)); }
-  try { return JSON.parse(Buffer.concat(chunks).toString()); } catch { fail(400, 'Invalid JSON.'); }
+  while (true) { const { done, value } = await reader.read(); if (done) break; size += value.length; if (size > limit) { await reader.cancel(); fail(413, 'Request is too large.'); } chunks.push(Buffer.from(value)); }
+  return Buffer.concat(chunks).toString();
+}
+async function body(request) {
+  const raw = await text(request);
+  try { return JSON.parse(raw); } catch { fail(400, 'Invalid JSON.'); }
 }
 async function handler(request, context) {
   try {
@@ -41,6 +45,12 @@ async function handler(request, context) {
       if (!safeEqual(request.headers.get('authorization'), process.env.CRON_SECRET ? `Bearer ${process.env.CRON_SECRET}` : '')) fail(401, 'Unauthorized');
       await ensureInitialized();
       return json({ results: await flushOutbox({ limit: 3 }) });
+    }
+    // Stripe calls this when an invoice link is paid; the signature replaces the origin check.
+    if (route === 'webhooks/stripe' && method === 'POST') {
+      const event = verifyStripeEvent(await text(request, 262144), request.headers.get('stripe-signature'));
+      await ensureInitialized();
+      return json(await handleStripeEvent(event));
     }
     if (method !== 'GET') assertOrigin(request);
     await ensureInitialized();
@@ -116,6 +126,7 @@ async function handler(request, context) {
       const page = Math.max(0, Math.min(10000, Number(url.searchParams.get('page')) || 0));
       const filter = {}; const status = url.searchParams.get('status');
       if (['confirmed', 'completed', 'cancelled'].includes(status)) filter.status = status;
+      if (status === 'unpaid') Object.assign(filter, { status: 'completed', payment: { $exists: false } });
       if (url.searchParams.get('customerId')) filter.customerId = url.searchParams.get('customerId');
       return json({ items: await db.collection('bookings').find(filter, { projection: { fingerprint: 0, rescheduleTokenHash: 0 } }).sort({ startsAt: -1 }).skip(page * 25).limit(25).toArray(), total: await db.collection('bookings').countDocuments(filter) });
     }
@@ -127,6 +138,7 @@ async function handler(request, context) {
     if (path[1] === 'customers' && path.length === 3 && method === 'PUT') { const data = await body(request); delete data.create; await saveCustomer(path[2], data, actor); return json({ ok: true }); }
     if (path[1] === 'services' && path.length === 3 && method === 'PUT') { await saveService(path[2], await body(request), actor); return json({ ok: true }); }
     if (route === 'admin/schedule' && method === 'PUT') { await saveSchedule(await body(request), actor); return json({ ok: true }); }
+    if (path[1] === 'bookings' && path[3] === 'payment' && path.length === 4 && method === 'POST') return json(await recordPayment(path[2], (await body(request)).method ?? null, actor));
     if (path[1] === 'bookings' && path.length === 3 && method === 'PATCH') {
       const data = await body(request);
       const result = await updateBooking(path[2], data.status, actor, data);

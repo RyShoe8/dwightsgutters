@@ -5,7 +5,9 @@ import { readFile } from 'node:fs/promises';
 import { DateTime } from 'luxon';
 import { MongoMemoryReplSet } from 'mongodb-memory-server';
 import { database, seed } from '../lib/db.mjs';
-import { createBooking, availableSlots, updateBooking, saveService } from '../lib/bookings.mjs';
+import { createBooking, availableSlots, updateBooking, saveService, recordPayment, handleStripeEvent } from '../lib/bookings.mjs';
+import { verifyStripeEvent } from '../lib/stripe.mjs';
+import { createHmac } from 'node:crypto';
 import { assertChangeAllowed, getChangeDetails, changeAppointment } from '../lib/reschedule.mjs';
 import { openDates } from '../lib/schedule.mjs';
 import { getStaff, saveStaff } from '../lib/staff.mjs';
@@ -69,18 +71,20 @@ test('completion requires configured payment options and saves one immutable fin
  await db.collection('bookings').updateOne({_id:b.receipt.reference},{$set:{startsAt:new Date(Date.now()-4*3600000),endsAt:new Date(Date.now()+3600000),occupiedUntil:new Date(Date.now()+5400000)}});
  await assert.rejects(updateBooking(b.receipt.reference,'completed',actor,{totalCents:17500}),/payment options/);
  assert.equal((await db.collection('bookings').findOne({_id:b.receipt.reference})).status,'confirmed');
- const payments=[{type:'Card / digital wallet',url:'https://payments.example.test/pay',instructions:'Card, Apple Pay and Google Pay if supported by the provider.'},{type:'PayPal',url:'https://paypal.example.test/dwight',instructions:'PayPal link'},{type:'Venmo',url:'https://venmo.example.test/dwight',instructions:'Venmo link'},{type:'Zelle',url:'',instructions:'Use the email on your invoice.'},{type:'Cash',url:'',instructions:'Arrange with Dwight.'},{type:'Check',url:'',instructions:'Payable to the business.'},{type:'Bank transfer',url:'',instructions:'Contact Dwight for transfer details.'}];
+ const others=[{type:'Card / digital wallet',url:'https://payments.example.test/pay',instructions:'Card, Apple Pay and Google Pay if supported by the provider.'},{type:'Zelle',url:'',instructions:'Use the email on your invoice.'},{type:'Bank transfer',url:'',instructions:'Contact Dwight for transfer details.'}];
+ const payments=[...others,{type:'Venmo'},{type:'PayPal'},{type:'Cash or check'}];
  await saveStaff({name:'Dwight',phone:'5125550199'},actor);
- await savePayments({...defaultPaymentSettings,venmo:{...defaultPaymentSettings.venmo,enabled:true,username:'@Dwights-Gutters',instructions:'Venmo link'},otherMethods:payments.filter(p=>p.type!=='Venmo').map(p=>({...defaultFees[p.type],...p}))},actor);
+ await savePayments({...defaultPaymentSettings,venmo:{...defaultPaymentSettings.venmo,enabled:true,username:'@Dwights-Gutters',instructions:'Venmo link'},paypal:{...defaultPaymentSettings.paypal,enabled:true,username:'DwightsGutters'},cashCheck:{...defaultPaymentSettings.cashCheck,enabled:true},otherMethods:others.map(p=>({...defaultFees[p.type],...p}))},actor);
  await assert.rejects(updateBooking(b.receipt.reference,'completed',actor,{totalCents:-1}),/final invoice total/);
  const results=await Promise.all([updateBooking(b.receipt.reference,'completed',actor,{totalCents:17500}),updateBooking(b.receipt.reference,'completed',actor,{totalCents:17500})]);
  assert.equal(results[0].invoice.number,results[1].invoice.number);
  assert.equal(await db.collection('outbox').countDocuments({_id:`${b.receipt.reference}-invoice-customer`}),1);
  const stored=await db.collection('bookings').findOne({_id:b.receipt.reference});assert.equal(stored.invoice.totalCents,17500);
- assert.deepEqual(stored.invoice.payments.map(p=>p.type),['Zelle','Cash','Check','Bank transfer','Venmo','Card / digital wallet','PayPal']);
+ assert.deepEqual(stored.invoice.payments.map(p=>p.type),['Cash or check','Zelle','Bank transfer','Venmo','Card / digital wallet','PayPal']);
  const venmo=new URL(stored.invoice.payments.find(p=>p.type==='Venmo').url);assert.equal(venmo.searchParams.get('amount'),'175.00');assert.equal(venmo.searchParams.get('recipients'),'Dwights-Gutters');assert.equal(venmo.searchParams.get('note'),`Invoice ${stored.invoice.number}`);assert.equal(stored.service.priceCents,before.service.priceCents);
+ assert.equal(stored.invoice.payments.find(p=>p.type==='PayPal').url,'https://paypal.me/DwightsGutters/175.00');
  await saveStaff({name:'Dwight',phone:'5125550123'},actor);
- await savePayments({...await getPayments(),venmo:{...defaultPaymentSettings.venmo,enabled:false},otherMethods:[{...defaultFees.Cash,type:'Cash',url:'',instructions:'Cash only'}]},actor);
+ await savePayments({...await getPayments(),venmo:{...defaultPaymentSettings.venmo,enabled:false},otherMethods:[]},actor);
  const again=await updateBooking(b.receipt.reference,'completed',actor,{totalCents:20000});assert.equal(again.invoice.totalCents,17500);assert.equal(again.invoice.phone,'5125550199');
  const [sent]=await flushOutbox({ids:[`${b.receipt.reference}-invoice-customer`],limit:1});assert.equal(sent.status,'captured');
  const captured=JSON.parse(await readFile(`.local/mail/${b.receipt.reference}-invoice-customer.json`,'utf8'));
@@ -89,7 +93,8 @@ test('completion requires configured payment options and saves one immutable fin
  await seed();assert.equal((await getStaff()).phone,'5125550123');
 });
 test('payment validation rejects unsafe links and incomplete instructions',()=>{
- for(const method of [{type:'Card / digital wallet',url:'',instructions:''},{type:'PayPal',url:'javascript:alert(1)',instructions:''},{type:'Check',url:'',instructions:''}].map(m=>({...defaultFees[m.type],...m})))assert.equal(paymentSettingsSchema.safeParse({...defaultPaymentSettings,otherMethods:[method]}).success,false);
+ for(const method of [{type:'Card / digital wallet',url:'',instructions:''},{type:'Other',url:'javascript:alert(1)',instructions:'x'},{type:'Zelle',url:'',instructions:''},{type:'Check',url:'',instructions:'x'}].map(m=>({...defaultFees.Other,...m})))assert.equal(paymentSettingsSchema.safeParse({...defaultPaymentSettings,otherMethods:[method]}).success,false);
+ for(const paypal of [{...defaultPaymentSettings.paypal,enabled:true},{...defaultPaymentSettings.paypal,username:'not a name'}])assert.equal(paymentSettingsSchema.safeParse({...defaultPaymentSettings,paypal}).success,false);
 });
 
 test('Stripe needs a connected key, Venmo needs a username, and settings survive staff changes',async()=>{
@@ -109,23 +114,25 @@ test('Stripe needs a connected key, Venmo needs a username, and settings survive
  for(const invalid of [{...defaultPaymentSettings,venmo:{...defaultPaymentSettings.venmo,enabled:true}},{...defaultPaymentSettings,venmo:{...defaultPaymentSettings.venmo,username:'bad name!'}},{...defaultPaymentSettings,stripe:{...defaultPaymentSettings.stripe,feePercent:-1}}])assert.equal(paymentSettingsSchema.safeParse(invalid).success,false);
 });
 test('PayPal.Me links carry the amount and fees order options for the actual total',()=>{
- const settings={...defaultPaymentSettings,otherMethods:[{...defaultFees.PayPal,type:'PayPal',url:'https://paypal.me/DwightsGutters',instructions:''},{...defaultFees['Card / digital wallet'],type:'Card / digital wallet',url:'https://square.link/u/abc',instructions:''},{type:'Other',url:'',instructions:'Flat-fee app',feePercent:0,feeCents:500}]};
+ const settings={...defaultPaymentSettings,paypal:{...defaultPaymentSettings.paypal,enabled:true,username:'DwightsGutters'},otherMethods:[{...defaultFees['Card / digital wallet'],type:'Card / digital wallet',url:'https://square.link/u/abc',instructions:''},{type:'Other',url:'',instructions:'Flat-fee app',feePercent:0,feeCents:500}]};
  const small=invoicePaymentOptions(settings,{totalCents:1000});
  assert.equal(small.find(p=>p.type==='PayPal').url,'https://paypal.me/DwightsGutters/10.00');assert.equal(small.find(p=>p.type==='PayPal').exact,true);assert.equal(small.find(p=>p.type==='Card / digital wallet').exact,false);
  assert.equal(small.at(-1).type,'Other');
  assert.equal(invoicePaymentOptions(settings,{totalCents:100000})[0].type,'Other');
- assert.equal(invoicePaymentOptions({...settings,otherMethods:[{...settings.otherMethods[0],url:'https://www.paypal.com/paypalme/Dwight'}]},{totalCents:2550})[0].url,'https://www.paypal.com/paypalme/Dwight/25.50');
+ assert.equal(invoicePaymentOptions({...settings,cashCheck:{...settings.cashCheck,enabled:true}},{totalCents:100000})[0].type,'Cash or check');
 });
 test('saved settings from the earlier link-based Payments migrate without losing Venmo',async()=>{
- await db.collection('settings').replaceOne({_id:'payments'},{revision:7,stripe:{enabled:true,url:'https://buy.stripe.com/old',instructions:'Old'},venmo:{enabled:true,url:'https://venmo.com/u/Old-Business',instructions:'Note it'},otherMethods:[{type:'Cash',url:'',instructions:'Cash ok'}]},{upsert:true});
+ await db.collection('settings').replaceOne({_id:'payments'},{revision:7,stripe:{enabled:true,url:'https://buy.stripe.com/old',instructions:'Old'},venmo:{enabled:true,url:'https://venmo.com/u/Old-Business',instructions:'Note it'},otherMethods:[{type:'Cash',url:'',instructions:'Cash ok.'},{type:'Check',url:'',instructions:'Checks to Dwight.'},{type:'PayPal',url:'https://www.paypal.com/paypalme/OldBiz',instructions:''},{type:'PayPal',url:'https://pay.example.test/pp',instructions:''},{type:'Zelle',url:'',instructions:'Zelle me'}]},{upsert:true});
  const migrated=await getPayments();
- assert.equal(migrated.revision,7);assert.equal(migrated.venmo.username,'Old-Business');assert.equal(migrated.venmo.enabled,true);assert.equal(migrated.venmo.feePercent,1.9);assert.equal(migrated.otherMethods[0].feeCents,0);assert.ok(!('url' in migrated.stripe));
+ assert.equal(migrated.revision,7);assert.equal(migrated.venmo.username,'Old-Business');assert.equal(migrated.venmo.enabled,true);assert.equal(migrated.venmo.feePercent,1.9);assert.ok(!('url' in migrated.stripe));
+ assert.deepEqual([migrated.paypal.enabled,migrated.paypal.username,migrated.paypal.feePercent],[true,'OldBiz',3.49]);assert.deepEqual([migrated.cashCheck.enabled,migrated.cashCheck.instructions],[true,'Cash ok. Checks to Dwight.']);
+ assert.deepEqual(migrated.otherMethods.map(m=>m.type),['Other','Zelle']);assert.equal(migrated.otherMethods[0].url,'https://pay.example.test/pp');
 });
 test('older Staff payment options migrate without guessing the card processor or overwriting prior invoices',async()=>{
  await db.collection('settings').deleteOne({_id:'payments'});
  const legacy=[{type:'Venmo',url:'https://venmo.com/legacy-business',instructions:'Reference invoice.'},{type:'Card / digital wallet',url:'https://payments.example.test/legacy',instructions:''},{type:'Cash',url:'',instructions:'Cash accepted.'}];
  await db.collection('settings').updateOne({_id:'staff'},{$set:{payments:legacy}});
- const migrated=await getPayments();assert.equal(migrated.stripe.enabled,false);assert.equal(migrated.venmo.enabled,true);assert.equal(migrated.otherMethods.length,2);
+ const migrated=await getPayments();assert.equal(migrated.stripe.enabled,false);assert.equal(migrated.venmo.enabled,true);assert.equal(migrated.otherMethods.length,1);assert.equal(migrated.cashCheck.enabled,true);
  await savePayments({...migrated,venmo:{...migrated.venmo,enabled:false}},actor);
  assert.equal((await getPayments()).venmo.enabled,false);
  const invoice=await db.collection('bookings').findOne({status:'completed'});assert.ok(invoice.invoice.payments.some(p=>p.type==='Venmo'));
@@ -148,7 +155,7 @@ test('downspout add-on joins a cleaning with its price and time, and is refused 
 test('completing a booking creates a one-time Stripe link for the exact total; a Stripe failure keeps it open',async()=>{
  const realFetch=globalThis.fetch,calls=[];process.env.STRIPE_SECRET_KEY='sk_test_sample';
  try{
-  const current=await getPayments();await savePayments({...current,stripe:{...current.stripe,enabled:true},otherMethods:[{...defaultFees.Cash,type:'Cash',url:'',instructions:'Cash ok'}]},actor);
+  const current=await getPayments();await savePayments({...current,stripe:{...current.stripe,enabled:true},venmo:{...current.venmo,enabled:false},paypal:{...current.paypal,enabled:false},cashCheck:{...current.cashCheck,enabled:true},otherMethods:[]},actor);
   const b=await book(22);await db.collection('bookings').updateOne({_id:b.receipt.reference},{$set:{startsAt:new Date(Date.now()-3600000)}});
   globalThis.fetch=async()=>({ok:false,json:async()=>({error:{message:'Invalid API key'}})});
   await assert.rejects(updateBooking(b.receipt.reference,'completed',actor,{totalCents:21000}),/Invalid API key/);
@@ -157,7 +164,7 @@ test('completing a booking creates a one-time Stripe link for the exact total; a
   const [first,second]=await Promise.all([updateBooking(b.receipt.reference,'completed',actor,{totalCents:21000}),updateBooking(b.receipt.reference,'completed',actor,{totalCents:21000})]);
   assert.equal(first.invoice.number,second.invoice.number);
   const stripe=first.invoice.payments.find(p=>p.type==='Stripe');assert.equal(stripe.url,'https://buy.stripe.com/test_exact');assert.equal(stripe.exact,true);
-  assert.deepEqual(first.invoice.payments.map(p=>p.type),['Cash','Stripe']);
+  assert.deepEqual(first.invoice.payments.map(p=>p.type),['Cash or check','Stripe']);
   const price=calls.find(c=>c.url.endsWith('/prices'));assert.equal(price.body.unit_amount,'21000');assert.equal(price.body.currency,'usd');assert.ok(price.key.includes(b.receipt.reference));
   const link=calls.find(c=>c.url.endsWith('/payment_links'));assert.equal(link.body['line_items[0][price]'],'price_123');assert.equal(link.body['restrictions[completed_sessions][limit]'],'1');
   assert.equal(new Set(calls.filter(c=>c.url.endsWith('/prices')).map(c=>c.key)).size,1);
@@ -202,4 +209,32 @@ test('gutter repair is hourly with a minimum, books alone or as a cleaning add-o
  const done=await updateBooking(solo.reference,'completed',actor,{totalCents:12500,hours:2.5});
  assert.deepEqual(done.invoice.hourly,{name:'Gutter repair',hours:2.5,hourlyRateCents:5000});
  const invoice=await db.collection('outbox').findOne({_id:`${solo.reference}-invoice-customer`});assert.ok(invoice.text.includes('Gutter repair time: 2.5 hours at $50.00/hour'));assert.ok(invoice.text.includes('$125.00'));
+});
+test('Dwight can mark a completed job paid by cash or check, correct it, and only completed jobs qualify',async()=>{
+ const current=await getPayments();await savePayments({...current,stripe:{...current.stripe,enabled:false},cashCheck:{...current.cashCheck,enabled:true}},actor);
+ const b=await book(44);
+ await assert.rejects(recordPayment(b.receipt.reference,'Cash or check',actor),/completed/);
+ await db.collection('bookings').updateOne({_id:b.receipt.reference},{$set:{startsAt:new Date(Date.now()-3600000)}});
+ await updateBooking(b.receipt.reference,'completed',actor,{totalCents:15000});
+ await assert.rejects(recordPayment(b.receipt.reference,'IOU',actor),/how the payment/);
+ const {payment}=await recordPayment(b.receipt.reference,'Cash or check',actor);
+ assert.deepEqual([payment.method,payment.amountCents,payment.recordedBy],['Cash or check',15000,actor]);
+ assert.equal((await recordPayment(b.receipt.reference,'Venmo',actor)).payment.method,'Cash or check');
+ assert.equal((await recordPayment(b.receipt.reference,null,actor)).payment,null);
+ assert.equal((await db.collection('bookings').findOne({_id:b.receipt.reference})).payment,undefined);
+ assert.equal((await recordPayment(b.receipt.reference,'Venmo',actor)).payment.method,'Venmo');
+});
+test('a signed Stripe checkout event records the payment on its booking automatically',async()=>{
+ const secret='whsec_test',sign=(raw,t=Math.floor(Date.now()/1000))=>`t=${t},v1=${createHmac('sha256',secret).update(`${t}.${raw}`).digest('hex')}`;
+ const b=await book(45);await db.collection('bookings').updateOne({_id:b.receipt.reference},{$set:{startsAt:new Date(Date.now()-3600000)}});
+ await updateBooking(b.receipt.reference,'completed',actor,{totalCents:15000});
+ const raw=JSON.stringify({type:'checkout.session.completed',data:{object:{id:'cs_test_1',payment_status:'paid',amount_total:15000,metadata:{booking_id:b.receipt.reference}}}});
+ assert.throws(()=>verifyStripeEvent(raw,sign(raw).replace(/v1=.*/,'v1='+'0'.repeat(64)),secret),/signature/);
+ assert.throws(()=>verifyStripeEvent(raw,sign(raw,Math.floor(Date.now()/1000)-600),secret),/Stale/);
+ assert.throws(()=>verifyStripeEvent(raw,sign(raw),''),/not configured/);
+ const event=verifyStripeEvent(raw,sign(raw),secret);
+ const result=await handleStripeEvent(event);assert.deepEqual([result.payment.method,result.payment.amountCents,result.payment.reference,result.payment.recordedBy],['Stripe',15000,'cs_test_1','stripe']);
+ assert.equal((await handleStripeEvent(event)).payment.reference,'cs_test_1');
+ assert.deepEqual(await handleStripeEvent({...event,data:{object:{...event.data.object,metadata:{booking_id:'missing'}}}}),{received:true});
+ assert.deepEqual(await handleStripeEvent({type:'payment_intent.created',data:{object:{}}}),{received:true});
 });
