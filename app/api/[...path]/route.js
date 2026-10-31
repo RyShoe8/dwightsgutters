@@ -6,6 +6,7 @@ import { getPayments, savePayments } from '../../../lib/payments.mjs';
 import { stripeReady, verifyStripeEvent } from '../../../lib/stripe.mjs';
 import { getChangeDetails, changeAppointment } from '../../../lib/reschedule.mjs';
 import { cookies } from 'next/headers';
+import { revalidatePath } from 'next/cache';
 import { randomUUID } from 'node:crypto';
 import { DateTime } from 'luxon';
 import { ZodError } from 'zod';
@@ -19,6 +20,8 @@ import { ZONE } from '../../../lib/schedule.mjs';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
+// Landing pages, the sitemap and llms.txt show coverage, prices and reviews; refresh them on save.
+const refreshMarketing = () => { try { revalidatePath('/', 'layout'); } catch { console.error('Marketing page refresh deferred to the hourly revalidation.'); } };
 const json = (value, status = 200) => Response.json(value, { status, headers: { 'Cache-Control': 'no-store' } });
 async function text(request, limit = 65536) {
   if (!request.headers.get('content-type')?.includes('application/json')) fail(415, 'Send JSON data.');
@@ -116,12 +119,12 @@ async function handler(request, context) {
     jar.set(cookieName, secret, sessionOptions);
     const { db } = await database();
     if (route === 'admin/reviews' && method === 'GET') return json(await getReviews());
-    if (route === 'admin/reviews' && method === 'PUT') return json(await saveReviews(await body(request), actor));
+    if (route === 'admin/reviews' && method === 'PUT') { const saved = await saveReviews(await body(request), actor); refreshMarketing(); return json(saved); }
     if (route === 'admin/config' && method === 'GET') return json({ actor, staff: await getStaff(db), payments: await getPayments(db), services: await db.collection('services').find().toArray(), schedule: await db.collection('settings').findOne({ _id: 'schedule' }), coverage: await db.collection('settings').findOne({ _id: 'coverage' }), emailReady: emailReady(), stripeReady: stripeReady() });
     if (route === 'admin/payments' && method === 'GET') return json(await getPayments(db));
     if (route === 'admin/payments' && method === 'PUT') return json(await savePayments(await body(request), actor));
     if (route === 'admin/staff' && method === 'PUT') return json(await saveStaff(await body(request), actor));
-    if (route === 'admin/coverage' && method === 'PUT') { await saveCoverage(await body(request), actor); return json({ ok: true }); }
+    if (route === 'admin/coverage' && method === 'PUT') { await saveCoverage(await body(request), actor); refreshMarketing(); return json({ ok: true }); }
     if (route === 'admin/bookings' && method === 'GET') {
       const page = Math.max(0, Math.min(10000, Number(url.searchParams.get('page')) || 0));
       const filter = {}; const status = url.searchParams.get('status');
@@ -136,7 +139,7 @@ async function handler(request, context) {
     }
     if (route === 'admin/customers' && method === 'POST') { const id = randomUUID(); await saveCustomer(id, { ...await body(request), create: true }, actor); return json({ id }, 201); }
     if (path[1] === 'customers' && path.length === 3 && method === 'PUT') { const data = await body(request); delete data.create; await saveCustomer(path[2], data, actor); return json({ ok: true }); }
-    if (path[1] === 'services' && path.length === 3 && method === 'PUT') { await saveService(path[2], await body(request), actor); return json({ ok: true }); }
+    if (path[1] === 'services' && path.length === 3 && method === 'PUT') { await saveService(path[2], await body(request), actor); refreshMarketing(); return json({ ok: true }); }
     if (route === 'admin/schedule' && method === 'PUT') { await saveSchedule(await body(request), actor); return json({ ok: true }); }
     if (path[1] === 'bookings' && path[3] === 'payment' && path.length === 4 && method === 'POST') return json(await recordPayment(path[2], (await body(request)).method ?? null, actor));
     if (path[1] === 'bookings' && path.length === 3 && method === 'PATCH') {

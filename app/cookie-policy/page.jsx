@@ -1,5 +1,6 @@
+import { pageMetadata } from '../../lib/seo.mjs';
 import { businessPhone, businessPhoneHref } from '../../lib/business.mjs';
-export const metadata = { title: "Cookie Policy | Dwight's Gutters", description: 'How dwightsgutters.com uses cookies: Google Analytics to understand site visits, and one sign-in cookie for the business admin.' };
+export const metadata = pageMetadata({"title":"Cookie Policy | Dwight's Gutters","description":"How dwightsgutters.com uses cookies: Google Analytics to understand site visits, and one sign-in cookie for the business admin.","path":"/cookie-policy/"});
 export default function Page() {
   return <main id="main"><section className="page-intro"><div className="container"><p className="eyebrow">WEBSITE INFORMATION</p><h1>Cookie Policy</h1><p className="lead">Short version: we use Google Analytics to see how people find and use the site, and one cookie to keep staff signed in. No advertising cookies.</p></div></section><section className="section container legal">
     <p className="fine">Effective October 31, 2026</p>

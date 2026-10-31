@@ -1,6 +1,7 @@
+import { pageMetadata } from '../../lib/seo.mjs';
 import ContactForm from '../../components/ContactForm';
 import ProfileLinks from '../../components/ProfileLinks';
 import ImageHero from '../../components/ImageHero';
 import { businessPhone, businessPhoneHref } from '../../lib/business.mjs';
-export const metadata={title:"Contact Us | Dwight's Gutters Austin",description:'Ask about gutter cleaning in Austin and nearby communities. Send a message or request a callback.'};
+export const metadata = pageMetadata({"title":"Contact Dwight's Gutters | Austin Gutter Cleaning & Repair","description":"Call or text (737) 425-1697, email, or send a message about gutter cleaning or repair in Austin and nearby cities.","path":"/contact/"});
 export default function Page(){return <main id="main"><ImageHero image="austin-neighborhood" alt="Tree-lined residential street with native Texas landscaping" caption="A LOCAL NAME. AN EASY CONVERSATION."><p className="eyebrow">{"LET\u2019S TALK GUTTERS"}</p><h1>{"A question?"}<br />{"You\u2019re in the right place."}</h1><p className="lead">{"Ask about your home, a nearby service area, or what to include in a cleaning request."}</p></ImageHero><section className="section container contact-layout"><ContactForm/><div><h2>A few details<br/>go a long way.</h2><p>For questions about your home, include your city, the number of stories, and what you’ve noticed.</p><p>Prefer to talk? Call or text Dwight at <a href={businessPhoneHref}>{businessPhone}</a>.</p><p>Ready to choose an appointment?</p><a className="button" href="/book/">Book a cleaning ↗</a><ProfileLinks/></div></section></main>;}

@@ -1,5 +1,6 @@
+import { pageMetadata } from '../../lib/seo.mjs';
 import { businessPhone, businessPhoneHref } from '../../lib/business.mjs';
-export const metadata = { title: "Terms of Service | Dwight's Gutters", description: 'The terms that apply when you book gutter cleaning, upkeep, or repair with Dwight’s Gutters in Austin, Texas.' };
+export const metadata = pageMetadata({"title":"Terms of Service | Dwight's Gutters","description":"The terms that apply when you book gutter cleaning, upkeep, or repair with Dwight’s Gutters in Austin, Texas.","path":"/terms/"});
 export default function Page() {
   return <main id="main"><section className="page-intro"><div className="container"><p className="eyebrow">WEBSITE INFORMATION</p><h1>Terms of Service</h1><p className="lead">Plain-language terms for booking and paying for work with Dwight’s Gutters.</p></div></section><section className="section container legal">
     <p className="fine">Effective October 31, 2026</p>
