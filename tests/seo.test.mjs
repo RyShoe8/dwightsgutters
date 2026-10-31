@@ -42,3 +42,12 @@ test('page metadata sets canonical URLs and social cards; business schema lists 
   const business = businessSchema();
   assert.equal(business.telephone, '+1-737-425-1697');assert.equal(business.areaServed.length, cities.length);
 });
+test('every city has a ground note, and every cited local fact links to an https source', async () => {
+  const { regionFacts } = await import('../lib/cities.mjs');
+  for (const c of cities) {
+    assert.ok(c.ground?.text, c.slug);
+    for (const tip of [c.ground, c.debris].filter(Boolean)) if (tip.source) assert.match(tip.source.url, /^https:\/\//, c.slug);
+  }
+  assert.ok(regionFacts.every(f => f.source.url.startsWith('https://')));
+  assert.ok(cities.filter(c => c.debris).length >= 5);
+});

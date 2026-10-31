@@ -3,7 +3,7 @@ import ImageHero from './ImageHero';
 import Reviews from './Reviews';
 import JsonLd from './JsonLd';
 import { businessPhone, businessPhoneHref } from '../lib/business.mjs';
-import { cities, cityBySlug, cityServed, landingServices } from '../lib/cities.mjs';
+import { cities, cityBySlug, cityServed, landingServices, regionFacts } from '../lib/cities.mjs';
 import { money, rateLabel } from '../lib/pricing.mjs';
 import { reviewSummary, siteData } from '../lib/siteData.mjs';
 import { absolute, breadcrumbSchema, faqSchema, landingPath, pageMetadata, siteUrl } from '../lib/seo.mjs';
@@ -34,7 +34,8 @@ export function landingContent(service, city, services) {
       faqs: [
         [`How much does gutter cleaning cost in ${city.name}?`, `${price} Add-ons such as downspout attention are optional. Dwight confirms the final scope and price before work begins, and you pay after the job using the options on your invoice.`],
         [`Do you clean gutters in my part of ${city.name}?`, `We serve ${city.name} ZIP codes ${zipText}. Enter your ZIP when you book to confirm your address is in our active area.`],
-        [`How often should gutters be cleaned in ${city.name}?`, `Most ${city.name} homes do well with a cleaning at least twice a year: once in late spring after live oaks drop their leaves and pollen, and again in late fall or early winter. Homes under heavy tree cover may need more.`],
+        [`How often should gutters be cleaned in ${city.name}?`, `Most ${city.name} homes do well with a cleaning at least twice a year. Oak pollen and tassels usually fall from late February through May, peaking around April, so schedule one cleaning in late spring and another in late fall or early winter. Homes under heavy tree cover may need more.`],
+        ...(city.debris ? [[`What should I do with yard debris in ${city.name}?`, `${city.debris.text} Rules can change, so check with ${city.debris.source.label} before you set things out.`]] : []),
         ['Do you clean two-story homes?', 'Yes. We work on one- and two-story homes. Pick your home’s height when you book and the price updates automatically. We don’t take on homes taller than two stories.'],
         ['Can you fix a loose or leaking gutter on the same visit?', repairAddOn ? `Yes. Add gutter repair when you book your cleaning. Repairs are ${rateLabel(repair)}.` : 'Mention it when you book and Dwight will take a look and talk through options.'],
         ['How do I book?', `Book online and choose an open time, or call or text ${businessPhone}. You’ll get an email confirmation right away, and you can change your time online up to 48 hours ahead.`],
@@ -60,6 +61,7 @@ export function landingContent(service, city, services) {
       ['What gutter repairs do you handle?', 'Common fixes include sagging runs, loose hangers, leaking seams and corners, and downspouts that have pulled away from the wall. We don’t replace whole gutter systems or install gutter guards.'],
       ['Can I combine a repair with a gutter cleaning?', repairAddOn ? 'Yes. Book a gutter cleaning and add gutter repair. Cleaning first often makes leaks and loose sections easier to spot.' : 'Yes. Mention it when you book and Dwight will plan for both.'],
       [`Do you repair gutters in my part of ${city.name}?`, `We serve ${city.name} ZIP codes ${zipText}. Enter your ZIP when you book to confirm your address is in our active area.`],
+      [`Why do gutters matter for ${city.name} homes?`, city.ground.text],
       ['Do you work on two-story homes?', 'Yes, one- and two-story homes. We don’t take on homes taller than two stories.'],
       ['How do I book?', `Book online and describe what you’ve noticed, or call or text ${businessPhone}. A photo sent by email helps.`],
     ],
@@ -98,6 +100,9 @@ export default function CityLanding({ service, citySlug, data }) {
       <div><p className="eyebrow">WHAT’S INCLUDED</p><h2>Done right, start to finish</h2><ul className="check-list">{content.included.map(item => <li key={item}>{item}</li>)}</ul></div>
       <div className="detail-aside"><h3>{landingServices[service].name} in {city.name}</h3><p>{city.local}</p>{city.neighborhoods.length > 0 && <p>We serve homes across {city.name}, including {list(city.neighborhoods)}.</p>}<p className="fine">ZIP codes served: {city.zips.join(', ')}</p></div>
     </section>
+    <section className="section pale" aria-labelledby="local-tips"><div className="container"><div className="section-heading"><div><p className="eyebrow">LOCAL KNOW-HOW</p><h2 id="local-tips">Gutter tips for {city.name} homes</h2></div><p>What Central Texas weather, trees, and soil mean for the gutters on your {city.name} home.</p></div>
+      <div className="tip-grid">{[...regionFacts, city.ground, ...(city.debris ? [{ title: `Yard debris in ${city.name}`, ...city.debris }] : [])].map(tip => <article className="tip-card" key={tip.title}><h3>{tip.title}</h3><p>{tip.text}</p>{tip.source && <p className="tip-source">Source: <a href={tip.source.url} target="_blank" rel="noopener noreferrer">{tip.source.label}</a></p>}</article>)}</div>
+    </div></section>
     <section className="section container"><div className="section-heading"><div><p className="eyebrow">HOW IT WORKS</p><h2>Booked in minutes</h2></div></div>
       <div className="steps"><article><span>01</span><h3>Pick a time online</h3><p>Choose your service, your home’s height, and an open time. You’ll get an email confirmation right away.</p></article><article><span>02</span><h3>Dwight does the work</h3><p>He confirms the scope and price with you before starting, then gets to work.</p></article><article><span>03</span><h3>Pay after the job</h3><p>You’ll get an emailed invoice with the payment options Dwight accepts. Nothing is charged when you book.</p></article></div>
     </section>
