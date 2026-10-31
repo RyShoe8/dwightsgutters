@@ -5,6 +5,7 @@ import './coverage.css';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import Interactions from '../components/Interactions';
+import Analytics from '../components/Analytics';
 
 export const metadata = {
   metadataBase: new URL('https://dwightsgutters.com'),
@@ -24,5 +25,5 @@ export const metadata = {
 
 export default function RootLayout({ children }) {
   const business = {'@context':'https://schema.org','@type':'Organization',name:"Dwight's Gutters",url:'https://dwightsgutters.com',email:'dwight@dwightsgutters.com',areaServed:{'@type':'City',name:'Austin, Texas'}};
-  return <html lang="en"><body><Header />{children}<Footer /><Interactions /><script type="application/ld+json" dangerouslySetInnerHTML={{__html:JSON.stringify(business)}} /></body></html>;
+  return <html lang="en"><body><Header />{children}<Footer /><Interactions /><Analytics /><script type="application/ld+json" dangerouslySetInnerHTML={{__html:JSON.stringify(business)}} /></body></html>;
 }
