@@ -10,19 +10,20 @@ export default function Page() {
     <p><strong>When you book an appointment:</strong> your name, email address, phone number (optional), preferred contact method, property address, city, and ZIP code, your home’s height, whether you have gutter guards, the service and time you choose, and any notes you add.</p>
     <p><strong>When you send a message or request a callback:</strong> your name, email address, phone number if you ask for a callback, and your message.</p>
     <p><strong>When we do the work:</strong> the final invoice total, hours for hourly repairs, the invoice number, and how you paid (for example, cash or check, Venmo, PayPal, or card). If you pay by card through Stripe, Stripe processes your card details; we never see or store your card number.</p>
-    <p><strong>When you use the website:</strong> Google Analytics collects information about how visitors use the site, such as pages viewed, approximate location, device and browser type, and how you arrived. See our <a href="/cookie-policy/">Cookie Policy</a> for details. Like most websites, our hosting provider may also keep standard server logs, which include IP addresses.</p>
+    <p><strong>When you use the website:</strong> if you accept analytics cookies in our cookie banner, Google Analytics collects information about how visitors use the site, such as pages viewed, approximate location, device and browser type, and how you arrived. See our <a href="/cookie-policy/">Cookie Policy</a> for details. Like most websites, our hosting provider may also keep standard server logs, which include IP addresses.</p>
     <p>We don’t ask for and don’t want sensitive information such as Social Security numbers, financial account numbers, or health information. Please don’t include it in notes or messages.</p>
 
     <h2>How we use it</h2>
     <ul>
       <li>To schedule, confirm, change, and cancel appointments, and to check that your address is in our service area</li>
       <li>To do the work, invoice you, and record your payment</li>
-      <li>To send booking confirmations, change and cancellation notices, and invoices by email, and to reply to your questions</li>
+      <li>To send booking confirmations, change and cancellation notices, and invoices, and to reply to your questions. If you choose phone as your preferred contact, Dwight texts your confirmation and invoice from his phone.</li>
+      <li>To email a reminder a month before the second cleaning in a seasonal plan, a thank-you after your job is paid, and an occasional note when it may be time for another cleaning</li>
       <li>To keep business, tax, and accounting records</li>
       <li>To understand how the website is used and make it easier to book</li>
       <li>To keep the site and admin area secure and prevent abuse</li>
     </ul>
-    <p>We don’t send marketing emails, and we don’t sell, rent, or share your personal information for advertising.</p>
+    <p>Apart from those occasional reminders, we don’t send marketing emails. Reply “stop” to any reminder and we won’t send more. We don’t sell, rent, or share your personal information for advertising.</p>
 
     <h2>Who we share it with</h2>
     <p>We share information only with service providers that help us run the business, and only what they need to do their job:</p>
@@ -30,7 +31,7 @@ export default function Page() {
       <li><strong>Website hosting and database:</strong> our hosting provider and MongoDB Atlas store the website and booking records.</li>
       <li><strong>Email delivery:</strong> Resend sends booking confirmations and invoices on our behalf.</li>
       <li><strong>Payments:</strong> Stripe, Venmo, and PayPal process payments when you choose them, under their own privacy policies.</li>
-      <li><strong>Analytics and site content:</strong> Google Analytics, Google Fonts, and OpenStreetMap map tiles, as described in our <a href="/cookie-policy/">Cookie Policy</a>.</li>
+      <li><strong>Analytics and site content:</strong> CookieScript (our cookie banner), Google Analytics, Google Fonts, and OpenStreetMap map tiles, as described in our <a href="/cookie-policy/">Cookie Policy</a>.</li>
     </ul>
     <p>We may also disclose information if required by law, to protect our rights or the safety of others, or as part of a sale or transfer of the business, in which case this policy would continue to apply.</p>
 
@@ -41,7 +42,7 @@ export default function Page() {
     <p>The website uses encrypted (HTTPS) connections. Access to customer records is limited to business staff who sign in with single-use email links. Links in your emails for changing an appointment use private, hard-to-guess tokens that are stored only in scrambled (hashed) form. No method of storage or transmission is perfectly secure, but we work to protect your information.</p>
 
     <h2>Your choices</h2>
-    <p>You can ask us to show you, correct, or delete the personal information we hold about you by emailing <a href="mailto:dwight@dwightsgutters.com">dwight@dwightsgutters.com</a> or calling or texting <a href={businessPhoneHref}>{businessPhone}</a>. We’ll respond within 45 days. We may need to keep some records, such as invoices, when the law requires it. You can block or delete cookies, or opt out of Google Analytics, as described in our <a href="/cookie-policy/">Cookie Policy</a>.</p>
+    <p>You can ask us to show you, correct, or delete the personal information we hold about you by emailing <a href="mailto:dwight@dwightsgutters.com">dwight@dwightsgutters.com</a> or calling or texting <a href={businessPhoneHref}>{businessPhone}</a>. We’ll respond within 45 days. We may need to keep some records, such as invoices, when the law requires it. You can accept or decline analytics cookies in our cookie banner and change your choice any time with the “Cookie settings” link at the bottom of every page, as described in our <a href="/cookie-policy/">Cookie Policy</a>.</p>
 
     <h2>Children</h2>
     <p>This website and our services are intended for adults. We don’t knowingly collect personal information from children under 13. If you believe a child has given us information, contact us and we’ll delete it.</p>
