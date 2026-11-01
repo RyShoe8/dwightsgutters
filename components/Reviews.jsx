@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { initialReviews, reviewSources } from '../lib/reviewSnapshot.mjs';
 import ProfileLinks from './ProfileLinks';
 
-export default function Reviews() {
+export default function Reviews({ compact = false }) {
   const [snapshot, setSnapshot] = useState(initialReviews);
   useEffect(() => {
     const controller = new AbortController();
@@ -14,7 +14,8 @@ export default function Reviews() {
   }, []);
   const count = snapshot.sources.reduce((sum, source) => sum + source.count, 0);
   const rating = count ? snapshot.sources.reduce((sum, source) => sum + source.rating * source.count, 0) / count : null;
-  return <section className="section reviews-section" aria-labelledby="reviews-title"><div className="container">
+  if (compact) return rating === null ? null : <a className="hero-review-badge" href="#reviews"><span className="review-stars" aria-hidden="true">★</span><strong>{rating.toFixed(1)} <small>/ 5</small></strong><span>{count} customer reviews<small>{snapshot.sources.map(source => reviewSources[source.id].name).join(' & ')}{snapshot.sources.length > 1 ? ' · combined average' : ''}</small></span><span aria-hidden="true">↗</span></a>;
+  return <section id="reviews" className="section reviews-section" aria-labelledby="reviews-title"><div className="container">
     <div className="section-heading"><div><p className="eyebrow">FROM LOCAL HOMEOWNERS</p><h2 id="reviews-title">Good words.<br/>Clear gutters.</h2></div>
       {rating !== null && <div className="review-summary"><span className="review-stars" aria-hidden="true">{'★'.repeat(Math.round(rating))}{'☆'.repeat(5 - Math.round(rating))}</span><p><strong>{rating.toFixed(1)}</strong> / 5</p><span>{count} {snapshot.sources.length > 1 ? 'reviews across Google and Yelp · approximate combined rating' : `reviews on ${reviewSources[snapshot.sources[0].id].name}`}</span></div>}
     </div>

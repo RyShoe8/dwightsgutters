@@ -26,9 +26,9 @@ export function landingContent(service, city, services) {
       cta: 'Book a gutter cleaning', bookHref: '/book/?service=Gutter+cleaning',
       prices: cleaning ? [
         ['One-story home', `from ${money(cleaning.priceCents)}`, 'Most single-story homes.'],
-        ['Two-story home', money(twoStory), 'Same thorough cleaning, higher roofline.'],
+        ['Two-story home', `from ${money(twoStory)}`, 'Same thorough cleaning, higher roofline.'],
         ...(downspout ? [['Add downspout attention', `+ ${money(downspout.priceCents)}`, 'For slow drains or suspected blockages.']] : []),
-        ...(repairAddOn ? [['Add gutter repair', rateLabel(repair), 'Fix a loose or leaking section on the same visit.']] : []),
+        ...(repairAddOn ? [['Add gutter repair', `${money(repair.hourlyRateCents).replace(/\.00$/, '')}/hour`, 'Most jobs take 1 hour. Fix a loose or leaking section on the same visit.']] : []),
       ] : [],
       included: ['Clear leaves, twigs, and roof grit from the gutter runs', 'Make room for water to flow toward the downspouts', 'Point out any loose sections, leaks, or damage we notice', 'One- and two-story homes', 'Homes with gutter guards, too (tell us the type when you book)'],
       faqs: [
@@ -87,11 +87,12 @@ export default function CityLanding({ service, citySlug, data }) {
     </ImageHero>
     <section className="section container landing-facts" aria-label={`${landingServices[service].name} in ${city.name} at a glance`}>
       <dl>
-        <div><dt>Service</dt><dd>{landingServices[service].name} for one- and two-story homes</dd></div>
-        <div><dt>Price</dt><dd>{content.prices.length ? `${content.prices[0][1]}${content.prices[1] ? ` · ${content.prices[1][0].toLowerCase()} ${content.prices[1][1]}` : ''}` : 'Shown when you book'}</dd></div>
-        <div><dt>Area</dt><dd>{city.name}, {city.county} · ZIP {city.zips.join(', ')}</dd></div>
-        <div><dt>Booking</dt><dd>Online, with email confirmation · or {businessPhone}</dd></div>
+        <div><dt>Your service</dt><dd>{landingServices[service].name}<span className="fact-note">For one- and two-story homes</span></dd></div>
+        <div><dt>{service === 'gutter-cleaning' ? 'Starting prices' : 'Repair pricing'}</dt><dd>{content.prices.length ? <ul className="fact-price-list">{content.prices.slice(0,2).map(([label, price]) => <li key={label}><span>{label}</span><strong>{price}</strong></li>)}</ul> : 'Shown when you book'}<span className="fact-note">Final scope and price confirmed before work.</span></dd></div>
+        <div><dt>Your area</dt><dd>{city.name}, TX<span className="fact-note">{city.county}</span><a className="fact-link" href="/service-area/#communities">Check your address →</a></dd></div>
+        <div><dt>Ready to book?</dt><dd><a className="fact-link" href={content.bookHref}>Choose an appointment →</a><span className="fact-note">Instant email confirmation</span><a className="fact-phone" href={businessPhoneHref}>Call or text {businessPhone}</a></dd></div>
       </dl>
+      <details className="landing-zip-details"><summary>View ZIP codes for {city.name}</summary><p>{city.zips.join(' · ')}</p><a className="text-link" href="/service-area/#communities">Check current coverage →</a></details>
     </section>
     {content.prices.length > 0 && <section className="section pale"><div className="container"><div className="section-heading"><div><p className="eyebrow">CLEAR, UPFRONT PRICING</p><h2>What it costs in {city.name}</h2></div><p>No payment when you book. Dwight confirms the final scope and price before any work starts, and you pay after the job.</p></div>
       <div className="service-grid landing-prices">{content.prices.map(([label, price, note]) => <div className="service-card" key={label}><h3>{label}</h3><p className="landing-price">{price}</p><p>{note}</p></div>)}</div>
