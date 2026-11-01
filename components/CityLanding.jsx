@@ -4,7 +4,7 @@ import Reviews from './Reviews';
 import JsonLd from './JsonLd';
 import { businessPhone, businessPhoneHref } from '../lib/business.mjs';
 import { cities, cityBySlug, cityServed, landingServices, regionFacts } from '../lib/cities.mjs';
-import { money, rateLabel } from '../lib/pricing.mjs';
+import { money, rateLabel, addOnMinutes } from '../lib/pricing.mjs';
 import { reviewSummary, siteData } from '../lib/siteData.mjs';
 import { absolute, breadcrumbSchema, faqSchema, landingPath, pageMetadata, siteUrl } from '../lib/seo.mjs';
 const list = items => items.length < 3 ? items.join(' and ') : `${items.slice(0, -1).join(', ')}, and ${items.at(-1)}`;
@@ -28,7 +28,7 @@ export function landingContent(service, city, services) {
         ['One-story home', `from ${money(cleaning.priceCents)}`, 'Most single-story homes.'],
         ['Two-story home', `from ${money(twoStory)}`, 'Same thorough cleaning, higher roofline.'],
         ...(downspout ? [['Add downspout attention', `+ ${money(downspout.priceCents)}`, 'For slow drains or suspected blockages.']] : []),
-        ...(repairAddOn ? [['Add gutter repair', `${money(repair.hourlyRateCents).replace(/\.00$/, '')}/hour`, 'Most jobs take 1 hour. Fix a loose or leaking section on the same visit.']] : []),
+        ...(repairAddOn ? [['Add gutter repair', `from ${money(repair.priceCents)}`, `About ${addOnMinutes(repair)} more minutes on the same visit. Large repairs quoted before work begins.`]] : []),
       ] : [],
       included: ['Clear leaves, twigs, and roof grit from the gutter runs', 'Make room for water to flow toward the downspouts', 'Point out any loose sections, leaks, or damage we notice', 'One- and two-story homes', 'Homes with gutter guards, too (tell us the type when you book)'],
       faqs: [

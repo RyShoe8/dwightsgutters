@@ -1,0 +1,124 @@
+import { test, before, after } from 'node:test';
+import assert from 'node:assert/strict';
+import { randomUUID } from 'node:crypto';
+import { DateTime } from 'luxon';
+import { MongoMemoryReplSet } from 'mongodb-memory-server';
+import { database, seed } from '../lib/db.mjs';
+import { createBooking, availableSlots, availableDates, updateBooking, saveService, confirmBooking, recordPayment } from '../lib/bookings.mjs';
+import { getChangeDetails, confirmVisit } from '../lib/reschedule.mjs';
+import { bookingText, runScheduledMessages } from '../lib/messages.mjs';
+import { getPayments, savePayments } from '../lib/payments.mjs';
+const actor = 'dwight@dwightsgutters.com';
+let repl, db;
+const date = days => DateTime.now().setZone('America/Chicago').plus({ days }).toISODate();
+before(async () => {
+  process.env.EMAIL_TRANSPORT = 'file'; process.env.APP_URL = 'http://127.0.0.1:3000'; process.env.MONGODB_DB = `workflow_${randomUUID()}`;
+  repl = await MongoMemoryReplSet.create({ replSet: { count: 1, storageEngine: 'wiredTiger' } }); process.env.MONGODB_URI = repl.getUri();
+  ({ db } = await database()); await seed();
+  await db.collection('settings').updateOne({ _id: 'schedule' }, { $set: { enabled: true, leadHours: 1, horizonDays: 60, bufferMinutes: 30, weekly: Array.from({ length: 7 }, (_, i) => ({ day: i + 1, enabled: true, start: '08:00', end: '18:00' })), exceptions: [] } });
+  await db.collection('settings').updateOne({ _id: 'coverage' }, { $set: { enabledZips: ['78701'] } });
+  await saveService('gutter-cleaning', { name: 'Gutter cleaning', priceCents: 15000, durationMinutes: 120, active: true }, actor);
+  await saveService('seasonal-upkeep', { name: 'Seasonal upkeep', priceCents: 15000, durationMinutes: 120, active: true }, actor);
+  await saveService('gutter-repair', { name: 'Gutter repair', priceCents: 5000, durationMinutes: 60, active: true }, actor);
+  const payments = await getPayments();
+  await savePayments({ ...payments, cashCheck: { ...payments.cashCheck, enabled: true } }, actor);
+});
+after(async () => { if (db) await db.dropDatabase(); if (globalThis.dwightMongo) await (await globalThis.dwightMongo).close(); await repl?.stop(); });
+async function book({ serviceId = 'gutter-cleaning', days = 3, notes = '', contact = 'Email', addOnIds = [], second, expected } = {}) {
+  const [slot] = await availableSlots(serviceId, date(days), addOnIds);
+  const input = { requestId: randomUUID(), serviceId, addOnIds, startsAt: slot.startsAt, expectedPriceCents: expected ?? 15000, name: 'Pat Example', email: `pat-${randomUUID()}@example.com`, phone: contact === 'Phone' ? '512-555-0142' : '', contact, address: '12 Oak Ln', city: 'Austin', zip: '78701', stories: 'One story', guards: 'No', notes, consent: true, ...(second ? { secondStartsAt: second } : {}) };
+  return { receipt: await createBooking(input), input };
+}
+const outbox = id => db.collection('outbox').findOne({ _id: id });
+
+test('bookings without notes confirm instantly; notes wait for Dwight, who confirms and emails the customer', async () => {
+  const instant = await book();
+  assert.equal(instant.receipt.status, 'confirmed'); assert.ok(await outbox(`${instant.receipt.reference}-confirmation-customer`));
+  const noted = await book({ days: 4, notes: 'Gate code 1234, dog in the yard' });
+  assert.equal(noted.receipt.status, 'pending'); assert.equal(await outbox(`${noted.receipt.reference}-confirmation-customer`), null);
+  const adminMail = await outbox(`${noted.receipt.reference}-confirmation-admin`);
+  assert.ok(adminMail.text.includes('needs your confirmation')); assert.ok(adminMail.html.includes('Gate code 1234'));
+  await assert.rejects(updateBooking(noted.receipt.reference, 'completed', actor, { totalCents: 15000 }), /Confirm this booking/);
+  const result = await confirmBooking(noted.receipt.reference, actor);
+  assert.equal(result.delivery, 'email'); assert.equal((await db.collection('bookings').findOne({ _id: noted.receipt.reference })).status, 'confirmed');
+  const mail = await outbox(`${noted.receipt.reference}-confirmation-customer`); assert.ok(mail.text.includes('/book/change/#token='));
+  assert.equal((await confirmBooking(noted.receipt.reference, actor)).alreadyConfirmed, true);
+});
+test('phone customers get a copy-ready text instead of emails, with a working change link', async () => {
+  const b = await book({ days: 5, contact: 'Phone' });
+  assert.equal(b.receipt.delivery, 'text'); assert.equal(await outbox(`${b.receipt.reference}-confirmation-customer`), null);
+  const text = await bookingText(b.receipt.reference, 'confirmation');
+  for (const part of ['Hi Pat!', 'Gutter cleaning', '12 Oak Ln', '$150.00', '(737) 425-1697']) assert.ok(text.includes(part), part);
+  const token = text.match(/#token=([a-f0-9]{64})/)[1];
+  assert.equal((await getChangeDetails(token)).service, 'Gutter cleaning');
+  await db.collection('bookings').updateOne({ _id: b.receipt.reference }, { $set: { startsAt: new Date(Date.now() - 3600000) } });
+  const done = await updateBooking(b.receipt.reference, 'completed', actor, { totalCents: 17500 });
+  assert.equal(done.delivery, 'text'); assert.equal(await outbox(`${b.receipt.reference}-invoice-customer`), null);
+  const invoice = await bookingText(b.receipt.reference, 'invoice');
+  assert.ok(invoice.includes(done.invoice.number)); assert.ok(invoice.includes('$175.00')); assert.ok(invoice.includes('Cash or check'));
+});
+test('gutter repair as a cleaning add-on reserves 30 more minutes, not its full hour', async () => {
+  const [slot] = await availableSlots('gutter-cleaning', date(6), ['gutter-repair']);
+  assert.equal((new Date(slot.endsAt) - new Date(slot.startsAt)) / 60000, 150);
+  const [alone] = await availableSlots('gutter-repair', date(6));
+  assert.equal((new Date(alone.endsAt) - new Date(alone.startsAt)) / 60000, 60);
+});
+test('seasonal upkeep books two cleanings, $50 off the second, past the book-ahead window', async () => {
+  const seasonal = await db.collection('services').findOne({ _id: 'seasonal-upkeep' });
+  assert.equal(seasonal.planVisits, 2); assert.equal(seasonal.secondVisitDiscountCents, 5000);
+  const first = date(7);
+  const secondDates = await availableDates('seasonal-upkeep', [], { visit: 2, after: first });
+  assert.equal(secondDates[0], DateTime.fromISO(first).plus({ days: 60 }).toISODate());
+  assert.ok(secondDates.at(-1) > date(300), 'second cleaning can be months past the 60-day window');
+  const far = secondDates.find(d => d >= date(150));
+  const [secondSlot] = await availableSlots('seasonal-upkeep', far, [], { visit: 2 });
+  await assert.rejects(book({ serviceId: 'seasonal-upkeep', days: 7, expected: 25000 }), /second cleaning/);
+  const [tooSoon] = await availableSlots('seasonal-upkeep', date(20), [], { visit: 2 });
+  await assert.rejects(book({ serviceId: 'seasonal-upkeep', days: 7, expected: 25000, second: tooSoon.startsAt }), /at least 60 days/);
+  await assert.rejects(book({ serviceId: 'seasonal-upkeep', days: 7, expected: 30000, second: secondSlot.startsAt }), /price has changed/);
+  const plan = await book({ serviceId: 'seasonal-upkeep', days: 7, expected: 25000, second: secondSlot.startsAt });
+  assert.equal(plan.receipt.second.priceCents, 10000); assert.equal(plan.receipt.second.discountCents, 5000);
+  const visits = await db.collection('bookings').find({ planId: plan.receipt.reference }).sort({ visit: 1 }).toArray();
+  assert.deepEqual(visits.map(v => [v.visit, v.service.priceCents]), [[1, 15000], [2, 10000]]);
+  const mail = await outbox(`${plan.receipt.reference}-confirmation-customer`);
+  assert.ok(mail.text.includes('Second cleaning')); assert.ok(mail.text.includes('you save $50.00')); assert.equal((mail.text.match(/#token=/g) || []).length, 2);
+});
+test('a month before the second cleaning the customer is reminded once and can confirm from the email', async () => {
+  const [visit2] = await db.collection('bookings').find({ visit: 2 }).toArray();
+  await db.collection('bookings').updateOne({ _id: visit2._id }, { $set: { startsAt: new Date(Date.now() + 20 * 86400000), endsAt: new Date(Date.now() + 20 * 86400000 + 7200000), occupiedUntil: new Date(Date.now() + 20 * 86400000 + 9000000) } });
+  const queued = await runScheduledMessages();
+  assert.ok(queued.includes(`${visit2._id}-reminder`));
+  assert.ok(!(await runScheduledMessages()).includes(`${visit2._id}-reminder`));
+  const reminder = await outbox(`${visit2._id}-reminder`);
+  const token = reminder.text.match(/#token=([a-f0-9]{64})/)[1];
+  assert.equal((await getChangeDetails(token)).needsConfirmation, true);
+  await confirmVisit({ token });
+  assert.ok((await db.collection('bookings').findOne({ _id: visit2._id })).customerConfirmedAt);
+  assert.equal((await getChangeDetails(token)).needsConfirmation, false);
+});
+test('six months after a single cleaning, customers get a follow-up unless they rebooked or opted out', async () => {
+  const ago = DateTime.now().minus({ months: 7 }).toJSDate();
+  const make = async days => { const b = await book({ days }); await db.collection('bookings').updateOne({ _id: b.receipt.reference }, { $set: { status: 'completed', startsAt: ago, completedAt: ago } }); return b; };
+  const lapsed = await make(8), returning = await make(9), optedOut = await make(10);
+  const again = await book({ days: 11 });
+  const returningBooking = await db.collection('bookings').findOne({ _id: returning.receipt.reference });
+  await db.collection('bookings').updateOne({ _id: again.receipt.reference }, { $set: { customerId: returningBooking.customerId } });
+  const optedBooking = await db.collection('bookings').findOne({ _id: optedOut.receipt.reference });
+  await db.collection('customers').updateOne({ _id: optedBooking.customerId }, { $set: { marketingOptOut: true } });
+  const queued = await runScheduledMessages();
+  assert.ok(queued.includes(`${lapsed.receipt.reference}-followup`));
+  assert.ok(!queued.includes(`${returning.receipt.reference}-followup`)); assert.ok(!queued.includes(`${optedOut.receipt.reference}-followup`));
+  assert.equal((await db.collection('bookings').findOne({ _id: returning.receipt.reference })).followUpSkipped, 'rebooked');
+  const mail = await outbox(`${lapsed.receipt.reference}-followup`); assert.ok(mail.text.includes('Reply “stop”'));
+  assert.ok(!(await runScheduledMessages()).includes(`${lapsed.receipt.reference}-followup`));
+});
+test('a paid job gets one thank-you email with an unconditional $25 credit and easy review links', async () => {
+  const b = await book({ days: 12 });
+  await db.collection('bookings').updateOne({ _id: b.receipt.reference }, { $set: { startsAt: new Date(Date.now() - 3600000) } });
+  await updateBooking(b.receipt.reference, 'completed', actor, { totalCents: 15000 });
+  await recordPayment(b.receipt.reference, 'Cash or check', actor);
+  const mail = await outbox(`${b.receipt.reference}-review-request`);
+  for (const part of ['$25 off your next gutter cleaning', 'share.google', 'yelp.com/biz', 'The $25 credit is yours either way']) assert.ok(mail.text.includes(part), part);
+  await recordPayment(b.receipt.reference, null, actor); await recordPayment(b.receipt.reference, 'Venmo', actor);
+  assert.equal(await db.collection('outbox').countDocuments({ _id: `${b.receipt.reference}-review-request` }), 1);
+});
