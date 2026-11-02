@@ -207,4 +207,4 @@ async function handler(request, context) {
     return json({ error: 'The system is temporarily unavailable. Please try again or email Dwight.' }, 503);
   }
 }
-export { handler as GET, handler as POST, handler as PUT, handler as PATCH };
+export { handler as GET, handler as POST, handler as PUT, handler as PATCH, handler as DELETE };
