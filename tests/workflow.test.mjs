@@ -37,7 +37,7 @@ test('bookings without notes confirm instantly; notes wait for Dwight, who confi
   const noted = await book({ days: 4, notes: 'Gate code 1234, dog in the yard' });
   assert.equal(noted.receipt.status, 'pending'); assert.equal(await outbox(`${noted.receipt.reference}-confirmation-customer`), null);
   const adminMail = await outbox(`${noted.receipt.reference}-confirmation-admin`);
-  assert.ok(adminMail.text.includes('needs your confirmation')); assert.ok(adminMail.html.includes('Gate code 1234'));
+  assert.ok(adminMail.text.includes('needs your confirmation')); assert.ok(adminMail.text.includes('Customer: Pat Example')); assert.ok(adminMail.text.includes(`id=${noted.receipt.reference}&action=reply`)); assert.ok(adminMail.text.includes('12 Oak Ln')); assert.ok(adminMail.html.includes('Gate code 1234'));
   await assert.rejects(updateBooking(noted.receipt.reference, 'completed', actor, { totalCents: 15000 }), /Confirm this booking/);
   const result = await confirmBooking(noted.receipt.reference, actor);
   assert.equal(result.delivery, 'email'); assert.equal((await db.collection('bookings').findOne({ _id: noted.receipt.reference })).status, 'confirmed');

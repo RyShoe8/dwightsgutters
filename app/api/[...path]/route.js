@@ -81,7 +81,9 @@ async function handler(request, context) {
     if (['inquiries', 'booking-requests'].includes(route) && method === 'POST') {
       const data = await body(request);
       await limit('contact-global', 300); await limit('contact:' + String(data.email || '').trim().toLowerCase(), 10);
-      return json(await saveInquiry(data, 'inquiry'), 201);
+      const inquiry = await saveInquiry(data, 'inquiry');
+      try { await flushOutbox({ids:[`${inquiry.reference}-inquiry-admin`],limit:1}); } catch { console.error('Inquiry notification deferred to outbox retry.'); }
+      return json(inquiry, 201);
     }
     if (route === 'catalog' && method === 'GET') {
       const { db } = await database();
@@ -144,9 +146,16 @@ async function handler(request, context) {
     if (route === 'admin/payments' && method === 'PUT') return json(await savePayments(await body(request), actor));
     if (route === 'admin/staff' && method === 'PUT') return json(await saveStaff(await body(request), actor));
     if (route === 'admin/coverage' && method === 'PUT') { await saveCoverage(await body(request), actor); refreshMarketing(); return json({ ok: true }); }
+    if (route === 'admin/record' && method === 'GET') {
+      const type=url.searchParams.get('type'), id=url.searchParams.get('id');
+      if (!['booking','inquiry'].includes(type)||!id||id.length>160) fail(400,'Choose a valid record.');
+      const record=await db.collection(type==='booking'?'bookings':'inquiries').findOne({_id:id},{projection:{fingerprint:0,rescheduleTokenHash:0,altTokenHashes:0}});
+      if(!record) fail(404,'This record could not be found.');
+      return json(record);
+    }
     if (route === 'admin/bookings' && method === 'GET') {
       const page = Math.max(0, Math.min(10000, Number(url.searchParams.get('page')) || 0));
-      return json(await listBookings({ page, status: url.searchParams.get('status') || 'all', customerId: url.searchParams.get('customerId') || undefined }));
+      return json(await listBookings({ page, status: url.searchParams.get('status') || 'all', id: url.searchParams.get('id') || undefined, customerId: url.searchParams.get('customerId') || undefined }));
     }
     if (route === 'admin/customers' && method === 'GET') {
       return json(await listContacts({ kind: ['customers', 'inquiries'].includes(url.searchParams.get('kind')) ? url.searchParams.get('kind') : 'customers', search: url.searchParams.get('q') || '', page: Math.max(0, Math.min(10000, Number(url.searchParams.get('page')) || 0)) }));
@@ -170,7 +179,7 @@ async function handler(request, context) {
       try { await flushOutbox({ ids, limit: 2 }); } catch { console.error('Booking email processing deferred to outbox retry.'); }
       return json({ ok: true, ...result, ...(data.status === 'completed' && result.delivery === 'text' ? { textMessage: await bookingText(path[2], 'invoice') } : {}) });
     }
-    if (route === 'admin/email' && method === 'GET') return json({ items: await db.collection('outbox').find({ kind: { $in: ['booking', 'invoice', 'reminder', 'followup', 'review', 'reply'] } }, { projection: { html: 0, text: 0 } }).sort({ createdAt: -1 }).limit(50).toArray() });
+    if (route === 'admin/email' && method === 'GET') return json({ items: await db.collection('outbox').find({ kind: { $in: ['booking', 'invoice', 'reminder', 'followup', 'review', 'reply', 'notification'] } }, { projection: { html: 0, text: 0 } }).sort({ createdAt: -1 }).limit(50).toArray() });
     if (route === 'admin/email/retry' && method === 'POST') return json({ results: await flushOutbox() });
     fail(404, 'Not found.');
   } catch (error) {

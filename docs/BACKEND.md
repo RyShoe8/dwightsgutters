@@ -120,3 +120,10 @@ Customers now has two categories: Customers and Inquiries. Existing lead-kind fo
 Bookings and inquiry details offer Reply by email. The server derives the recipient from the selected record, validates the message, and atomically saves reply history with an email outbox entry. A request UUID prevents duplicate sends on retries. History shows the delivery status and admin sender; an email-provider acceptance is not a delivery receipt. Customer responses go to Dwight's existing email inbox and are not imported into admin. The Email section includes these reply messages.
 
 Payment processing estimates are internal business costs used to order available payment methods. Customers pay the invoice total with every method; the preview and invoice do not add or display a processing surcharge.
+
+
+## Owner notifications
+
+New bookings email Dwight at dwight@dwightsgutters.com, including pending bookings and phone-preferred customers. Notifications include contact details, property, service, starting prices, Austin appointment times, notes and both visits for seasonal plans. New contact-form and cleaning-request inquiries email their submitted details and callback preference. Inquiry storage and notification queuing share a transaction; retries do not duplicate notifications. Delivery uses the existing email outbox with immediate processing and scheduled retries.
+
+Notification buttons open the specific booking or inquiry, or open its email reply composer. These are record links, not authentication tokens: the normal secure admin sign-in is required. The selected destination survives the sign-in flow in the same browser tab. Linked bookings can be managed through the existing booking controls; Show all bookings clears the record filter. Inquiry notifications appear in the admin Email delivery list.

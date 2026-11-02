@@ -5,7 +5,7 @@ import { readFile } from 'node:fs/promises';
 import { MongoMemoryReplSet } from 'mongodb-memory-server';
 import { database, seed } from '../lib/db.mjs';
 import { queueReply, listReplies } from '../lib/replies.mjs';
-import { listContacts } from '../lib/inquiries.mjs';
+import { saveInquiry, listContacts } from '../lib/inquiries.mjs';
 import { flushOutbox, invoiceEmail } from '../lib/email.mjs';
 import { invoicePaymentOptions, defaultPaymentSettings } from '../lib/paymentOptions.mjs';
 const actor='dwight@dwightsgutters.com';let repl,db;const inquiryId=randomUUID(),bookingId=randomUUID();
@@ -16,3 +16,15 @@ test('booking replies are attached to that booking and concurrent retries cannot
 test('reply validation rejects missing targets, blank bodies and unsupported target types',async()=>{const base={type:'booking',id:bookingId,requestId:randomUUID(),text:'Hello'};await assert.rejects(queueReply({...base,id:randomUUID()},actor),/not found/);await assert.rejects(queueReply({...base,type:'customer'},actor));await assert.rejects(queueReply({...base,text:'  '},actor));await assert.rejects(queueReply({...base,text:'x'.repeat(4001)},actor));});
 test('legacy lead inquiries and manual customer records remain visible without a Leads category',async()=>{await db.collection('inquiries').insertOne({_id:randomUUID(),name:'Older request',email:'old-request@example.com',kind:'lead',createdAt:new Date()});await db.collection('customers').insertOne({_id:randomUUID(),name:'Manual contact',email:'manual@example.com',status:'lead',createdAt:new Date()});assert.equal((await listContacts({kind:'inquiries',search:'old-request@example.com'})).total,1);assert.equal((await listContacts({kind:'customers',search:'manual@example.com'})).total,1);});
 test('business processing estimates never increase or appear in the customer invoice amount',()=>{const settings={...defaultPaymentSettings,stripe:{...defaultPaymentSettings.stripe,enabled:true},cashCheck:{...defaultPaymentSettings.cashCheck,enabled:true}};const payments=invoicePaymentOptions(settings,{totalCents:15000,stripeUrl:'https://buy.stripe.com/test_example'});assert.equal(payments.find(p=>p.type==='Stripe').estimatedFeeCents,465);const mail=invoiceEmail({_id:'test',name:'Pat',email:'pat@example.com',service:{name:'Gutter cleaning'},startsAt:new Date(),address:'1 Test Lane',city:'Austin',zip:'78701',invoice:{number:'DG-TEST',totalCents:15000,phone:'737-425-1697',payments}});assert.ok(mail.text.includes('$150.00'));assert.ok(!mail.text.includes('$154.65'));assert.ok(!mail.text.includes('$4.65'));assert.ok(!mail.html.includes('$4.65'));});
+
+test('new inquiries atomically queue one detailed admin notification despite concurrent retries',async()=>{
+ const input={requestId:randomUUID(),name:'New <Customer>',email:'new@example.com',callback:true,phone:'5125550133',message:'Please help <script> with my gutters.',consent:true};
+ await Promise.all([saveInquiry(input),saveInquiry(input)]);
+ const id=`${input.requestId}-inquiry-admin`;
+ assert.equal(await db.collection('outbox').countDocuments({_id:id}),1);
+ const mail=await db.collection('outbox').findOne({_id:id});
+ assert.equal(mail.to,actor);assert.equal(mail.kind,'notification');
+ assert.ok(mail.text.includes('Callback requested'));assert.ok(mail.text.includes('512-555-0133'));
+ assert.ok(mail.text.includes(`type=inquiry&id=${input.requestId}&action=reply`));
+ assert.ok(mail.html.includes('&lt;script&gt;'));assert.ok(!mail.html.includes('<script>'));
+});

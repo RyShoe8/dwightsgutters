@@ -36,7 +36,7 @@ export default function AdminSignIn() {
       const data = await response.json();
       if (!response.ok) throw Error(data.error);
       if (action === 'request') { setCode(''); setStep('code'); setMessage(data.message); codeInput.current?.focus(); }
-      else location.assign('/admin/');
+      else { const hash=sessionStorage.getItem('adminReturnHash')||''; sessionStorage.removeItem('adminReturnHash'); location.assign('/admin/'+(hash.startsWith('#')?hash:'')); }
     } catch (e) { setError(e.message); }
     finally { setBusy(false); }
   }
