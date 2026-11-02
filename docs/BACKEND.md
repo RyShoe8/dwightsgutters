@@ -127,3 +127,21 @@ Payment processing estimates are internal business costs used to order available
 New bookings email Dwight at dwight@dwightsgutters.com, including pending bookings and phone-preferred customers. Notifications include contact details, property, service, starting prices, Austin appointment times, notes and both visits for seasonal plans. New contact-form and cleaning-request inquiries email their submitted details and callback preference. Inquiry storage and notification queuing share a transaction; retries do not duplicate notifications. Delivery uses the existing email outbox with immediate processing and scheduled retries.
 
 Notification buttons open the specific booking or inquiry, or open its email reply composer. These are record links, not authentication tokens: the normal secure admin sign-in is required. The selected destination survives the sign-in flow in the same browser tab. Linked bookings can be managed through the existing booking controls; Show all bookings clears the record filter. Inquiry notifications appear in the admin Email delivery list.
+
+
+The compliance mailing address is included only in promotional discount/review and rebooking emails, in both HTML and plain text, alongside reply-to-opt-out instructions. It is kept in the server messaging module, outside shared public business data, page content, metadata and structured data. Routine confirmations, invoices, owner notifications and sign-in emails do not include it.
+
+
+## Staff access and personal availability
+
+Admin sign-in accounts have Owner or Staff access. Dwight remains an enabled Owner; the existing Media Shop administrator retains Owner access during migration. Owners add or edit names, sign-in emails, roles and enabled status in Staff. No invitation email is sent automatically. Disabled accounts lose their active sessions and unused sign-in tokens. An Owner cannot demote or disable themselves; another Owner must do that. Membership changes are audited.
+
+Roles are checked from the current account on each admin API request. Staff can view the shared booking list, reply to booking customers, confirm/cancel bookings, prepare confirmation/invoice texts, and complete jobs with invoices. Staff cannot access CRM customers/inquiries, business availability, service/coverage changes, payment configuration, payment recording, deletion, staff management or the email delivery log. Payment options needed for invoice preparation remain available to their booking workflow.
+
+My schedule stores personal availability separately in staffSchedules, keyed by the signed-in account's email. Staff cannot read or update another person's schedule. Owners can select any team member here. Personal hours do not change online booking slots; the Owner-controlled Availability section remains the single-crew business calendar.
+
+PayPal and Venmo cards include expandable setup instructions with official help links. Venmo takes the business profile @username rather than a numeric ID; PayPal takes the PayPal.Me name and accepts a pasted PayPal.Me URL.
+
+## Deleting records
+
+Owners have Delete customer in the saved customer editor and Delete booking on booking cards. Both require confirmation. Customers with booking history must have those bookings deleted first. Deleting a seasonal booking deletes both visits and releases their time slots. Deletion does not send a cancellation email; cancel the booking instead when a customer needs notification. Invoice/payment-bearing bookings are retained, and deletion waits if a related email is in flight. Pending booking/reply mail is stopped, booking reply history is removed, and audit entries retain the IDs, actor and time. Existing delivered email cannot be recalled. Deletion is permanent; no trash/restore interface is provided.

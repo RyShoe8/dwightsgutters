@@ -1,0 +1,61 @@
+import {test,before,after} from 'node:test';
+import assert from 'node:assert/strict';
+import {randomUUID} from 'node:crypto';
+import {MongoMemoryReplSet} from 'mongodb-memory-server';
+import {database,seed} from '../lib/db.mjs';
+import {getAccess,authorizeRoute,authorizeTarget,saveMember,personalSchedule} from '../lib/access.mjs';
+import {deleteBooking,deleteCustomer} from '../lib/bookings.mjs';
+const owner='dwight@dwightsgutters.com',staff='helper@example.com';let repl,db;
+before(async()=>{process.env.APP_URL='http://127.0.0.1:3000';process.env.EMAIL_TRANSPORT='file';process.env.MONGODB_DB='access_'+randomUUID();repl=await MongoMemoryReplSet.create({replSet:{count:1,storageEngine:'wiredTiger'}});process.env.MONGODB_URI=repl.getUri();({db}=await database());await seed();});
+after(async()=>{await db?.dropDatabase();if(globalThis.dwightMongo)await(await globalThis.dwightMongo).close();await repl?.stop();});
+test('Owner management preserves Dwight, revokes disabled sessions and denies Staff role changes',async()=>{
+ assert.equal((await getAccess(owner)).role,'owner');
+ await saveMember({email:staff,name:'Helper',role:'staff',enabled:true},owner);
+ assert.equal((await getAccess(staff)).role,'staff');
+ await assert.rejects(saveMember({email:'other@example.com',name:'Other',role:'owner',enabled:true},staff),/Only an Owner/);
+ await assert.rejects(saveMember({email:owner,name:'Dwight',role:'staff',enabled:true},owner),/Dwight must remain/);
+ await db.collection('sessions').insertOne({_id:'test-session',email:staff});
+ await saveMember({email:staff,name:'Helper',role:'staff',enabled:false},owner);
+ assert.equal(await db.collection('sessions').countDocuments({email:staff}),0);
+ await assert.rejects(getAccess(staff),/sign in/);
+ await saveMember({email:staff,name:'Helper',role:'staff',enabled:true},owner);
+});
+test('Staff may manage bookings and personal availability but cannot reach owner areas or inquiry replies',()=>{
+ for(const [route,method] of [['admin/bookings','GET'],['admin/bookings/test/confirm','POST'],['admin/bookings/test','PATCH'],['admin/my-schedule','PUT'],['admin/replies','POST']])assert.doesNotThrow(()=>authorizeRoute('staff',route,method));
+ for(const [route,method] of [['admin/team','PUT'],['admin/team','GET'],['admin/customers','GET'],['admin/payments','GET'],['admin/payments','PUT'],['admin/schedule','PUT'],['admin/email','GET'],['admin/bookings/test','DELETE'],['admin/bookings/test/payment','POST'],['admin/services','GET']])assert.throws(()=>authorizeRoute('staff',route,method),/Only an Owner/);
+ assert.throws(()=>authorizeTarget('staff','inquiry'),/bookings only/);
+ assert.doesNotThrow(()=>authorizeTarget('staff','booking'));
+});
+test('personal availability cannot overwrite the business schedule or another staff schedule',async()=>{
+ const before=await db.collection('settings').findOne({_id:'schedule'});
+ const schedule={enabled:true,leadHours:1,horizonDays:60,bufferMinutes:30,weekly:Array.from({length:7},(_,i)=>({day:i+1,enabled:i===0,start:'09:00',end:'17:00'})),exceptions:[]};
+ await assert.rejects(personalSchedule(staff,{...schedule,exceptions:[{date:'2026-02-30',enabled:false,start:'09:00',end:'17:00'}]}),/invalid/);
+ await personalSchedule(staff,schedule);
+ assert.equal((await personalSchedule(staff)).weekly[0].enabled,true);
+ assert.equal(await personalSchedule(owner),null);
+ assert.deepEqual(await db.collection('settings').findOne({_id:'schedule'}),before);
+});
+test('booking deletion releases both plan visits, stops queued mail, retains unrelated records and audits changes',async()=>{
+ const id=randomUUID(),cid=randomUUID();
+ await db.collection('customers').insertOne({_id:cid});
+ await db.collection('bookings').insertMany([{_id:id,customerId:cid,planId:id},{_id:id+'-2',customerId:cid,planId:id},{_id:'unrelated',customerId:'other'}]);
+ await db.collection('outbox').insertMany([{_id:id+'-confirmation-admin',status:'pending',html:'private'},{_id:'unrelated-mail',status:'pending'},{_id:'reply-'+id,status:'pending'}]);
+ await db.collection('replies').insertOne({_id:'reply-record',targetType:'booking',targetId:id,outboxId:'reply-'+id});
+ await assert.rejects(deleteCustomer(cid,owner),/bookings first/);
+ const result=await deleteBooking(id+'-2',owner);assert.equal(result.deleted.length,2);
+ assert.equal(await db.collection('bookings').countDocuments({customerId:cid}),0);
+ assert.equal((await db.collection('outbox').findOne({_id:id+'-confirmation-admin'})).status,'failed');
+ assert.equal((await db.collection('outbox').findOne({_id:'reply-'+id})).status,'failed');
+ assert.equal((await db.collection('outbox').findOne({_id:'unrelated-mail'})).status,'pending');
+ assert.ok(await db.collection('bookings').findOne({_id:'unrelated'}));
+ assert.equal(await db.collection('replies').countDocuments({targetId:id}),0);
+ assert.equal(await db.collection('audit').countDocuments({action:'booking.deleted'}),2);
+ await deleteCustomer(cid,owner);assert.equal(await db.collection('customers').findOne({_id:cid}),null);
+});
+test('financial records and an in-flight email prevent booking deletion',async()=>{
+ await db.collection('bookings').insertMany([{_id:'financial',invoice:{number:'DG-1'}},{_id:'in-flight'}]);
+ await db.collection('outbox').insertOne({_id:'in-flight-confirmation-admin',status:'sending'});
+ await assert.rejects(deleteBooking('financial',owner),/financial records/);
+ await assert.rejects(deleteBooking('in-flight',owner),/being sent/);
+ assert.equal(await db.collection('bookings').countDocuments({_id:{$in:['financial','in-flight']}}),2);
+});

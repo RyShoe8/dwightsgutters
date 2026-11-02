@@ -1,3 +1,5 @@
+import {getAccess,authorizeRoute,authorizeTarget,listTeam,saveMember,personalSchedule} from '../../../lib/access.mjs';
+import { deleteBooking, deleteCustomer } from '../../../lib/bookings.mjs';
 import { listReplies, queueReply } from '../../../lib/replies.mjs';
 import { listBookings } from '../../../lib/adminBookings.mjs';
 import { saveInquiry, listContacts } from '../../../lib/inquiries.mjs';
@@ -126,12 +128,15 @@ async function handler(request, context) {
     if (path[0] !== 'admin') fail(404, 'Not found.');
     const jar = await cookies(); const secret = jar.get(cookieName)?.value;
     const actor = await requireAdmin(secret);
+    const access=await getAccess(actor);
+    authorizeRoute(access.role,route,method);
     jar.set(cookieName, secret, sessionOptions);
     const { db } = await database();
-    if (route === 'admin/replies' && method === 'GET') return json(await listReplies({ type: url.searchParams.get('type'), id: url.searchParams.get('id') }));
+    if (route === 'admin/replies' && method === 'GET') {authorizeTarget(access.role,url.searchParams.get('type')); return json(await listReplies({ type: url.searchParams.get('type'), id: url.searchParams.get('id') }));}
     if (route === 'admin/replies' && method === 'POST') {
       await limit('admin-replies:' + actor, 100);
-      const reply = await queueReply(await body(request), actor);
+      const data=await body(request); authorizeTarget(access.role,data.type);
+      const reply = await queueReply(data, actor);
       let status = 'pending';
       try {
         await flushOutbox({ ids: [reply.outboxId], limit: 1 });
@@ -141,13 +146,23 @@ async function handler(request, context) {
     }
     if (route === 'admin/reviews' && method === 'GET') return json(await getReviews());
     if (route === 'admin/reviews' && method === 'PUT') { const saved = await saveReviews(await body(request), actor); refreshMarketing(); return json(saved); }
-    if (route === 'admin/config' && method === 'GET') return json({ actor, staff: await getStaff(db), payments: await getPayments(db), services: await db.collection('services').find().toArray(), schedule: await db.collection('settings').findOne({ _id: 'schedule' }), coverage: await db.collection('settings').findOne({ _id: 'coverage' }), emailReady: emailReady(), stripeReady: stripeReady() });
+    if (route === 'admin/team' && method === 'GET') return json({items:await listTeam()});
+    if (route === 'admin/team' && method === 'PUT') return json(await saveMember(await body(request),actor));
+    if (route === 'admin/my-schedule' && ['GET','PUT'].includes(method)) {
+      const target=url.searchParams.get('email')||actor;
+      if(target!==actor&&access.role!=='owner') fail(403,'Staff can edit only their own availability.');
+      if(!await db.collection('admins').findOne({_id:target}))fail(404,'Team member not found.');
+      return method==='GET' ? json({schedule:await personalSchedule(target)}) : json(await personalSchedule(target,await body(request)));
+    }
+    if (route === 'admin/config' && method === 'GET' && access.role!=='owner') return json({actor,role:access.role,services:[],schedule:null,coverage:null,payments:await getPayments(db),emailReady:emailReady(),stripeReady:stripeReady()});
+    if (route === 'admin/config' && method === 'GET') return json({ actor, role:access.role, staff: await getStaff(db), payments: await getPayments(db), services: await db.collection('services').find().toArray(), schedule: await db.collection('settings').findOne({ _id: 'schedule' }), coverage: await db.collection('settings').findOne({ _id: 'coverage' }), emailReady: emailReady(), stripeReady: stripeReady() });
     if (route === 'admin/payments' && method === 'GET') return json(await getPayments(db));
     if (route === 'admin/payments' && method === 'PUT') return json(await savePayments(await body(request), actor));
     if (route === 'admin/staff' && method === 'PUT') return json(await saveStaff(await body(request), actor));
     if (route === 'admin/coverage' && method === 'PUT') { await saveCoverage(await body(request), actor); refreshMarketing(); return json({ ok: true }); }
     if (route === 'admin/record' && method === 'GET') {
       const type=url.searchParams.get('type'), id=url.searchParams.get('id');
+      authorizeTarget(access.role,type);
       if (!['booking','inquiry'].includes(type)||!id||id.length>160) fail(400,'Choose a valid record.');
       const record=await db.collection(type==='booking'?'bookings':'inquiries').findOne({_id:id},{projection:{fingerprint:0,rescheduleTokenHash:0,altTokenHashes:0}});
       if(!record) fail(404,'This record could not be found.');
@@ -162,6 +177,8 @@ async function handler(request, context) {
 
     }
     if (route === 'admin/customers' && method === 'POST') { const id = randomUUID(); await saveCustomer(id, { ...await body(request), create: true }, actor); return json({ id }, 201); }
+    if (path[1] === 'customers' && path.length === 3 && method === 'DELETE') return json(await deleteCustomer(path[2],actor));
+    if (path[1] === 'bookings' && path.length === 3 && method === 'DELETE') return json(await deleteBooking(path[2],actor));
     if (path[1] === 'customers' && path.length === 3 && method === 'PUT') { const data = await body(request); delete data.create; await saveCustomer(path[2], data, actor); return json({ ok: true }); }
     if (path[1] === 'services' && path.length === 3 && method === 'PUT') { await saveService(path[2], await body(request), actor); refreshMarketing(); return json({ ok: true }); }
     if (route === 'admin/schedule' && method === 'PUT') { await saveSchedule(await body(request), actor); return json({ ok: true }); }
