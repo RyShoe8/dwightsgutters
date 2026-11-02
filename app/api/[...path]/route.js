@@ -1,3 +1,5 @@
+import { listReplies, queueReply } from '../../../lib/replies.mjs';
+import { listBookings } from '../../../lib/adminBookings.mjs';
 import { saveInquiry, listContacts } from '../../../lib/inquiries.mjs';
 import { getReviews, saveReviews } from '../../../lib/reviews.mjs';
 import { initialReviews } from '../../../lib/reviewSnapshot.mjs';
@@ -79,7 +81,7 @@ async function handler(request, context) {
     if (['inquiries', 'booking-requests'].includes(route) && method === 'POST') {
       const data = await body(request);
       await limit('contact-global', 300); await limit('contact:' + String(data.email || '').trim().toLowerCase(), 10);
-      return json(await saveInquiry(data, route === 'booking-requests' ? 'lead' : 'inquiry'), 201);
+      return json(await saveInquiry(data, 'inquiry'), 201);
     }
     if (route === 'catalog' && method === 'GET') {
       const { db } = await database();
@@ -124,6 +126,17 @@ async function handler(request, context) {
     const actor = await requireAdmin(secret);
     jar.set(cookieName, secret, sessionOptions);
     const { db } = await database();
+    if (route === 'admin/replies' && method === 'GET') return json(await listReplies({ type: url.searchParams.get('type'), id: url.searchParams.get('id') }));
+    if (route === 'admin/replies' && method === 'POST') {
+      await limit('admin-replies:' + actor, 100);
+      const reply = await queueReply(await body(request), actor);
+      let status = 'pending';
+      try {
+        await flushOutbox({ ids: [reply.outboxId], limit: 1 });
+        status = (await db.collection('outbox').findOne({ _id: reply.outboxId }, { projection: { status: 1 } }))?.status || 'pending';
+      } catch { console.error('Admin reply processing deferred to outbox retry.'); }
+      return json({ status });
+    }
     if (route === 'admin/reviews' && method === 'GET') return json(await getReviews());
     if (route === 'admin/reviews' && method === 'PUT') { const saved = await saveReviews(await body(request), actor); refreshMarketing(); return json(saved); }
     if (route === 'admin/config' && method === 'GET') return json({ actor, staff: await getStaff(db), payments: await getPayments(db), services: await db.collection('services').find().toArray(), schedule: await db.collection('settings').findOne({ _id: 'schedule' }), coverage: await db.collection('settings').findOne({ _id: 'coverage' }), emailReady: emailReady(), stripeReady: stripeReady() });
@@ -133,14 +146,10 @@ async function handler(request, context) {
     if (route === 'admin/coverage' && method === 'PUT') { await saveCoverage(await body(request), actor); refreshMarketing(); return json({ ok: true }); }
     if (route === 'admin/bookings' && method === 'GET') {
       const page = Math.max(0, Math.min(10000, Number(url.searchParams.get('page')) || 0));
-      const filter = {}; const status = url.searchParams.get('status');
-      if (['pending', 'confirmed', 'completed', 'cancelled'].includes(status)) filter.status = status;
-      if (status === 'unpaid') Object.assign(filter, { status: 'completed', payment: { $exists: false } });
-      if (url.searchParams.get('customerId')) filter.customerId = url.searchParams.get('customerId');
-      return json({ items: await db.collection('bookings').find(filter, { projection: { fingerprint: 0, rescheduleTokenHash: 0, altTokenHashes: 0 } }).sort({ startsAt: -1 }).skip(page * 25).limit(25).toArray(), total: await db.collection('bookings').countDocuments(filter) });
+      return json(await listBookings({ page, status: url.searchParams.get('status') || 'all', customerId: url.searchParams.get('customerId') || undefined }));
     }
     if (route === 'admin/customers' && method === 'GET') {
-      return json(await listContacts({ kind: ['customers', 'leads', 'inquiries'].includes(url.searchParams.get('kind')) ? url.searchParams.get('kind') : 'customers', search: url.searchParams.get('q') || '', page: Math.max(0, Math.min(10000, Number(url.searchParams.get('page')) || 0)) }));
+      return json(await listContacts({ kind: ['customers', 'inquiries'].includes(url.searchParams.get('kind')) ? url.searchParams.get('kind') : 'customers', search: url.searchParams.get('q') || '', page: Math.max(0, Math.min(10000, Number(url.searchParams.get('page')) || 0)) }));
 
     }
     if (route === 'admin/customers' && method === 'POST') { const id = randomUUID(); await saveCustomer(id, { ...await body(request), create: true }, actor); return json({ id }, 201); }
@@ -161,7 +170,7 @@ async function handler(request, context) {
       try { await flushOutbox({ ids, limit: 2 }); } catch { console.error('Booking email processing deferred to outbox retry.'); }
       return json({ ok: true, ...result, ...(data.status === 'completed' && result.delivery === 'text' ? { textMessage: await bookingText(path[2], 'invoice') } : {}) });
     }
-    if (route === 'admin/email' && method === 'GET') return json({ items: await db.collection('outbox').find({ kind: { $in: ['booking', 'invoice', 'reminder', 'followup', 'review'] } }, { projection: { html: 0, text: 0 } }).sort({ createdAt: -1 }).limit(50).toArray() });
+    if (route === 'admin/email' && method === 'GET') return json({ items: await db.collection('outbox').find({ kind: { $in: ['booking', 'invoice', 'reminder', 'followup', 'review', 'reply'] } }, { projection: { html: 0, text: 0 } }).sort({ createdAt: -1 }).limit(50).toArray() });
     if (route === 'admin/email/retry' && method === 'POST') return json({ results: await flushOutbox() });
     fail(404, 'Not found.');
   } catch (error) {

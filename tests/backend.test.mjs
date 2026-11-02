@@ -142,11 +142,10 @@ test('inquiries validate callback, reject spam, retry safely and appear only in 
  assert.equal((await listContacts({kind:'inquiries',search:'contact@example.com'})).total,1);
  assert.equal((await listContacts({kind:'customers',search:'contact@example.com'})).total,0);
  await saveInquiry({...input,requestId:randomUUID(),email:'request@example.com'},'lead');
- assert.equal((await listContacts({kind:'leads',search:'request@example.com'})).total,1);
- assert.equal((await listContacts({kind:'inquiries',search:'request@example.com'})).total,0);
+ assert.equal((await listContacts({kind:'inquiries',search:'request@example.com'})).total,1);
  const bookedCustomer = await db.collection('customers').findOne();
  assert.equal((await listContacts({kind:'customers',search:bookedCustomer.email})).total,1);
- assert.equal((await listContacts({kind:'leads',search:bookedCustomer.email})).total,0);
+ assert.equal((await listContacts({kind:'inquiries',search:bookedCustomer.email})).total,0);
 });
 
 test('email codes share single-use credentials with links and enforce expiry and attempt limits', async () => {

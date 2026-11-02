@@ -33,7 +33,7 @@ test('robots keep private areas out while letting crawlers render public pages',
 test('llms.txt states services, live prices, contact details and every served city', () => {
   const services = { 'gutter-cleaning': { priceCents: 15000, twoStoryPriceCents: 30000 }, 'gutter-repair': { priceCents: 5000, hourlyRateCents: 5000 }, 'downspout-concern': { priceCents: 4000 } };
   const text = llmsText({ enabledZips: coverageZips, services });
-  for (const fact of ['from $150 for a one-story home', '$300 for a two-story home', '$50 per hour, $50 minimum', '(737) 425-1697', 'one- and two-story', `${siteUrl}/gutter-cleaning/georgetown/`]) assert.ok(text.includes(fact), fact);
+  for (const fact of ['from $150 for a one-story home', '$300 for a two-story home', '$50 per hour, $50 minimum', '737-425-1697', 'one- and two-story', `${siteUrl}/gutter-cleaning/georgetown/`]) assert.ok(text.includes(fact), fact);
   assert.ok(llmsText({ enabledZips: coverageZips, services: {} }).includes('Current prices are shown when booking'));
 });
 test('page metadata sets canonical URLs and social cards; business schema lists every city', () => {

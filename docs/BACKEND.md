@@ -104,3 +104,19 @@ Stripe payments are recorded automatically. In the Stripe dashboard, add a webho
 - **sitemap.xml** (`app/sitemap.js`): public pages plus every enabled city page.
 - **llms.txt** (`/llms.txt`): a plain-language fact sheet (services, live prices, area, contact, links to every city page) for AI assistants to read and cite.
 - After deploying, submit `https://dwightsgutters.com/sitemap.xml` in Google Search Console and Bing Webmaster Tools.
+
+## Customer addresses, phone formatting, and booking visibility
+
+US phone numbers display and save as `555-555-5555` across booking/contact forms, Staff, customer records, admin booking lists and customer emails. Existing stored numbers are formatted when read/displayed; international numbers and extensions are preserved. Telephone/SMS destinations remain dialable. Customer phone search accepts raw digits or formatted numbers.
+
+New customers receive the street address, city, and ZIP from their booking. Repeat bookings fill missing customer address fields while preserving an admin-entered address and private notes. For older records missing those fields, the customer list reads the latest booking address as a fallback; saving customer details persists the address. Booking property snapshots remain unchanged. Addresses can be edited in the customer details form.
+
+Admin Bookings now defaults to All bookings. Requests with customer notes still reserve a slot and wait in Needs confirmation; they are included in the default list rather than hidden behind the previous Confirmed filter. A customer and its booking are created in the same transaction, so this display fix does not create replacement appointments or duplicate customer records.
+
+## Admin replies and contact categories
+
+Customers now has two categories: Customers and Inquiries. Existing lead-kind form submissions appear under Inquiries; manually created customer records remain visible under Customers regardless of booking history. New cleaning-request submissions are inquiries. No records are deleted by this category change.
+
+Bookings and inquiry details offer Reply by email. The server derives the recipient from the selected record, validates the message, and atomically saves reply history with an email outbox entry. A request UUID prevents duplicate sends on retries. History shows the delivery status and admin sender; an email-provider acceptance is not a delivery receipt. Customer responses go to Dwight's existing email inbox and are not imported into admin. The Email section includes these reply messages.
+
+Payment processing estimates are internal business costs used to order available payment methods. Customers pay the invoice total with every method; the preview and invoice do not add or display a processing surcharge.

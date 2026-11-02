@@ -48,7 +48,7 @@ test('phone customers get a copy-ready text instead of emails, with a working ch
   const b = await book({ days: 5, contact: 'Phone' });
   assert.equal(b.receipt.delivery, 'text'); assert.equal(await outbox(`${b.receipt.reference}-confirmation-customer`), null);
   const text = await bookingText(b.receipt.reference, 'confirmation');
-  for (const part of ['Hi Pat!', 'Gutter cleaning', '12 Oak Ln', '$150.00', '(737) 425-1697']) assert.ok(text.includes(part), part);
+  for (const part of ['Hi Pat!', 'Gutter cleaning', '12 Oak Ln', '$150.00', '737-425-1697']) assert.ok(text.includes(part), part);
   const token = text.match(/#token=([a-f0-9]{64})/)[1];
   assert.equal((await getChangeDetails(token)).service, 'Gutter cleaning');
   await db.collection('bookings').updateOne({ _id: b.receipt.reference }, { $set: { startsAt: new Date(Date.now() - 3600000) } });

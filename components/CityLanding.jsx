@@ -19,7 +19,7 @@ export function landingContent(service, city, services) {
     const price = cleaning ? `Gutter cleaning in ${city.name} starts at ${money(cleaning.priceCents)} for a one-story home and ${money(twoStory)} for a two-story home.` : `You’ll see the current price for your home when you book online.`;
     return {
       title: `Gutter Cleaning in ${area} | Dwight’s Gutters`,
-      description: `Book gutter cleaning in ${area} online.${cleaning ? ` From ${money(cleaning.priceCents)} for one-story homes.` : ''} Veteran-owned, upfront pricing, one- and two-story homes. Call or text ${businessPhone}.`,
+      description: `Gutter cleaning in ${area}.${cleaning ? ` From ${money(cleaning.priceCents)} for one-story homes.` : ''} Veteran-owned. Book online or call/text ${businessPhone}.`,
       eyebrow: `${city.name.toUpperCase()}, TX · GUTTER CLEANING`, h1: `Gutter cleaning in ${city.name}, TX`,
       lead: `Clogged or overflowing gutters? Dwight clears the leaves, twigs, and roof grit so rain can drain the way it should. Book online in a couple of minutes.`,
       image: 'gutter-cleaning', alt: 'Illustrative close-up of oak leaves being cleared from a home’s gutter',
@@ -45,7 +45,7 @@ export function landingContent(service, city, services) {
   const rate = repair ? rateLabel(repair) : null;
   return {
     title: `Gutter Repair in ${area} | Dwight’s Gutters`,
-    description: `Gutter repair in ${area}: sagging sections, loose hangers, leaking seams, and detached downspouts.${repair ? ` ${rate}.` : ''} Book online or call or text ${businessPhone}.`,
+    description: `Gutter repair in ${area} for leaks, sagging gutters and downspouts.${repair ? ` ${rate}.` : ''} Book online or call/text ${businessPhone}.`,
     eyebrow: `${city.name.toUpperCase()}, TX · GUTTER REPAIR`, h1: `Gutter repair in ${city.name}, TX`,
     lead: `Sagging, leaking, or pulling away from the house? Dwight fixes the small problems that send water where it shouldn’t go, billed by the hour with no surprises.`,
     image: 'austin-home', alt: 'Illustrative Central Texas limestone home with white gutters and a downspout',

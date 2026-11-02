@@ -35,7 +35,7 @@ async function book(days){
 }
 test('confirmation includes service, starting price, Austin time, private change link and contact details',async()=>{
  const b=await book(3);
- for(const value of ['Gutter cleaning','$150.00','Appointment:','48 hours','/contact/','(737) 425-1697'])assert.ok(b.mail.text.includes(value),value);
+ for(const value of ['Gutter cleaning','$150.00','Appointment:','48 hours','/contact/','737-425-1697'])assert.ok(b.mail.text.includes(value),value);
  assert.ok(b.mail.html.includes('/book/change/#token='));assert.ok(b.mail.html.includes('Contact Dwight'));
  const stored=await db.collection('bookings').findOne({_id:b.receipt.reference});assert.equal(stored.rescheduleTokenHash,hash(b.token));assert.ok(!JSON.stringify(stored).includes(b.token));
  await createBooking(b.input);assert.equal(await db.collection('outbox').countDocuments({_id:b.mail._id}),1);
@@ -85,12 +85,12 @@ test('completion requires configured payment options and saves one immutable fin
  assert.equal(stored.invoice.payments.find(p=>p.type==='PayPal').url,'https://paypal.me/DwightsGutters/175.00');
  await saveStaff({name:'Dwight',phone:'5125550123'},actor);
  await savePayments({...await getPayments(),venmo:{...defaultPaymentSettings.venmo,enabled:false},otherMethods:[]},actor);
- const again=await updateBooking(b.receipt.reference,'completed',actor,{totalCents:20000});assert.equal(again.invoice.totalCents,17500);assert.equal(again.invoice.phone,'5125550199');
+ const again=await updateBooking(b.receipt.reference,'completed',actor,{totalCents:20000});assert.equal(again.invoice.totalCents,17500);assert.equal(again.invoice.phone,'512-555-0199');
  const [sent]=await flushOutbox({ids:[`${b.receipt.reference}-invoice-customer`],limit:1});assert.equal(sent.status,'captured');
  const captured=JSON.parse(await readFile(`.local/mail/${b.receipt.reference}-invoice-customer.json`,'utf8'));
- assert.ok(captured.text.includes('$175.00'));const capturedHtml=await readFile(`.local/mail/${b.receipt.reference}-invoice-customer.html`,'utf8');assert.ok(capturedHtml.includes('Pay $175.00 with Venmo'));assert.ok(capturedHtml.includes('enter $175.00'));assert.ok(captured.text.includes('/contact/'));assert.ok(captured.text.includes('5125550199'));for(const p of payments)assert.ok(captured.text.includes(p.type));
+ assert.ok(captured.text.includes('$175.00'));const capturedHtml=await readFile(`.local/mail/${b.receipt.reference}-invoice-customer.html`,'utf8');assert.ok(capturedHtml.includes('Pay $175.00 with Venmo'));assert.ok(capturedHtml.includes('enter $175.00'));assert.ok(captured.text.includes('/contact/'));assert.ok(captured.text.includes('512-555-0199'));for(const p of payments)assert.ok(captured.text.includes(p.type));
  const escaped=invoiceEmail({...stored,name:'<script>bad</script>'});assert.ok(escaped.html.includes('&lt;script&gt;'));assert.ok(!escaped.html.includes('<script>'));
- await seed();assert.equal((await getStaff()).phone,'5125550123');
+ await seed();assert.equal((await getStaff()).phone,'512-555-0123');
 });
 test('payment validation rejects unsafe links and incomplete instructions',()=>{
  for(const method of [{type:'Card / digital wallet',url:'',instructions:''},{type:'Other',url:'javascript:alert(1)',instructions:'x'},{type:'Zelle',url:'',instructions:''},{type:'Check',url:'',instructions:'x'}].map(m=>({...defaultFees.Other,...m})))assert.equal(paymentSettingsSchema.safeParse({...defaultPaymentSettings,otherMethods:[method]}).success,false);
