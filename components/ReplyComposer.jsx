@@ -10,7 +10,7 @@ export default function ReplyComposer({ type, record, onClose }) {
     const result = await response.json(); if (!response.ok) throw Error(result.error || 'Unable to load replies.'); setItems(result.items);
   }
   useEffect(() => {
-    panel.current?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    panel.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
     const controller = new AbortController();
     load(controller.signal).catch(e => { if (e.name !== 'AbortError') setError(e.message); });
     return () => controller.abort();
