@@ -53,11 +53,15 @@ save('web/favicon',64,64,mark(4,4,56),png_width=512)
 header='<g transform="translate(30,20) scale(.35)">'+primary()+'</g>'+txt('dwightsgutters.com',1080,92,24,NAVY,font='bold')+f'<rect y="168" width="1500" height="4" fill="{ORANGE}"/>'
 save('web/website-header',1500,172,header,WHITE,png_width=3000)
 
-# Business card: 3.75 x 2.25 inches including 0.125 inch bleed.
-front='<g transform="translate(56,64) scale(.514)">'+primary()+'</g>'+txt('dwightsgutters.com',0,350,27,NAVY,400,'bold')
-# Center the outlined URL independently.
-front=front.replace('translate(0,350)','translate(175,350)')+f'<rect x="75" y="394" width="600" height="6" fill="{ORANGE}"/>'
-back=mark(295,62,160,'white')+txt('GUTTER CLEANING',145,300,32,WHITE,460,'bold',5)+txt('dwightsgutters.com',175,360,27,WHITE,400,'bold')
+# Business card: 3.75 x 2.25 inches including 0.125 inch bleed (200 units per inch).
+# All type stays inside the 1/8 inch safe area: x 50-700, y 50-400 on the bleed canvas.
+PHONE='737-425-1697'; SITE='dwightsgutters.com'
+def centered(s,y,size,color,font='bold',cx=375,tracking=0):
+    f=fonts[font]; gs=f.getGlyphSet(); cmap=f.getBestCmap(); scale=size/f['head'].unitsPerEm
+    width=sum(gs[cmap[ord(c)]].width*scale for c in s)+tracking*(len(s)-1)
+    return txt(s,cx-width/2,y,size,color,font=font,tracking=tracking)
+front='<g transform="translate(56,52) scale(.514)">'+primary()+'</g>'+centered(PHONE,306,48,NAVY)+centered(SITE,350,27,NAVY)+f'<rect x="75" y="378" width="600" height="6" fill="{ORANGE}"/>'
+back=mark(320,52,110,'white')+centered('Clean gutters.',208,36,WHITE)+centered('One less thing on your list.',250,30,ORANGE)+centered(PHONE,318,44,WHITE)+centered(SITE,360,25,WHITE)
 save('print/business-card-front-bleed',750,450,front,WHITE,png_width=2250)
 save('print/business-card-back-bleed',750,450,back,NAVY,png_width=2250)
 save('print/business-card-front',700,400,'<g transform="translate(-25,-25)">'+front+'</g>',WHITE,png_width=2100)
