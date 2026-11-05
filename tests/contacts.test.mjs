@@ -1,3 +1,4 @@
+import {publicPaymentMethods,defaultPaymentSettings} from '../lib/paymentOptions.mjs';
 import {test,before,after} from 'node:test';
 import assert from 'node:assert/strict';
 import {randomUUID} from 'node:crypto';
@@ -17,3 +18,17 @@ test('noted bookings are pending, saved atomically with customer address, and vi
 test('legacy customers show the booking address, and phone search works with and without dashes',async()=>{await db.collection('customers').updateOne({_id:customerId},{$unset:{address:'',city:'',zip:''},$set:{phone:'5125550123'}});for(const search of ['5125550123','512-555-0123','(512) 555-0123','+1 512 555 0123']){const found=await listContacts({search});assert.equal(found.total,1);assert.equal(found.items[0].address,'123 First St');assert.equal(found.items[0].city,'Austin');assert.equal(found.items[0].zip,'78701');assert.equal(found.items[0].phone,'512-555-0123');}assert.equal((await listContacts({search:'address@example.com'})).total,1);assert.equal((await listContacts({search:'address[.*'})).total,0);assert.equal((await db.collection('customers').findOne({_id:customerId})).address,undefined);});
 test('CRM edits save addresses; repeat bookings preserve the edited customer identity and booking snapshots',async()=>{await saveCustomer(customerId,{name:'Admin name',email:bookingInput.email,phone:'15125550123',address:'55 Saved Ave',city:'Round Rock',zip:'78664',status:'active',notes:'Private note'},actor);const date=DateTime.now().setZone('America/Chicago').plus({days:6}).toISODate();const [slot]=await availableSlots('gutter-cleaning',date);await createBooking({...bookingInput,requestId:randomUUID(),startsAt:slot.startsAt,address:'99 Second Property',notes:''});const c=await db.collection('customers').findOne({_id:customerId});assert.equal(c.address,'55 Saved Ave');assert.equal(c.city,'Round Rock');assert.equal(c.zip,'78664');assert.equal(c.name,'Admin name');assert.equal(c.notes,'Private note');assert.equal(c.phone,'512-555-0123');assert.equal((await listBookings()).total,2);const original=await db.collection('bookings').findOne({_id:bookingInput.requestId});assert.equal(original.address,'123 First St');});
 test('inquiries and Staff also normalize phone numbers before saving',async()=>{await saveInquiry({requestId:randomUUID(),name:'Inquiry',email:'inquiry@example.com',callback:true,phone:'+1 (512) 555-0188',message:'Please call me back.',consent:true});assert.equal((await db.collection('inquiries').findOne({email:'inquiry@example.com'})).phone,'512-555-0188');assert.equal((await saveStaff({name:'Dwight',phone:'7374251697'},actor)).phone,'737-425-1697');});
+
+test('optional phone falls back to email and still queues the customer quote',async()=>{
+ const date=DateTime.now().setZone('America/Chicago').plus({days:10}).toISODate();const [slot]=await availableSlots('gutter-cleaning',date);
+ const receipt=await createBooking({...bookingInput,requestId:randomUUID(),email:'no-phone@example.com',phone:'',contact:'Phone',notes:'',startsAt:slot.startsAt});
+ assert.equal(receipt.delivery,'email');
+ const booking=await db.collection('bookings').findOne({_id:receipt.reference});assert.equal(booking.contact,'Email');assert.equal(booking.phone,'');
+ const mail=await db.collection('outbox').findOne({_id:receipt.reference+'-confirmation-customer'});assert.equal(mail.to,'no-phone@example.com');assert.ok(mail.text.includes('starting quote'));assert.ok(mail.text.includes('Payment is due in full after the work is complete'));
+});
+test('public payment methods track enabled options without exposing fees, handles or bank instructions',()=>{
+ const settings={...defaultPaymentSettings,cashCheck:{...defaultPaymentSettings.cashCheck,enabled:true},venmo:{...defaultPaymentSettings.venmo,enabled:true,username:'privatehandle'},stripe:{...defaultPaymentSettings.stripe,enabled:true},paypal:{...defaultPaymentSettings.paypal,enabled:false},otherMethods:[{type:'Bank transfer',instructions:'PRIVATE BANK DETAILS',feeCents:999,url:'https://example.com/private'}]};
+ assert.deepEqual(publicPaymentMethods(settings,false),['Cash or check','Venmo','Bank transfer']);
+ assert.deepEqual(publicPaymentMethods(settings,true),['Cash or check','Card (Stripe)','Venmo','Bank transfer']);
+ assert.deepEqual(publicPaymentMethods(defaultPaymentSettings,true),[]);
+});

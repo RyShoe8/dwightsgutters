@@ -145,3 +145,8 @@ PayPal and Venmo cards include expandable setup instructions with official help 
 ## Deleting records
 
 Owners have Delete customer in the saved customer editor and Delete booking on booking cards. Both require confirmation. Customers with booking history must have those bookings deleted first. Deleting a seasonal booking deletes both visits and releases their time slots. Deletion does not send a cancellation email; cancel the booking instead when a customer needs notification. Invoice/payment-bearing bookings are retained, and deletion waits if a related email is in flight. Pending booking/reply mail is stopped, booking reply history is removed, and audit entries retain the IDs, actor and time. Existing delivered email cannot be recalled. Deletion is permanent; no trash/restore interface is provided.
+
+
+Booking consent explains that the customer receives a starting quote based on submitted details, approves any scope/price changes before work begins, and pays the invoice in full after completion. The phone field is optional even if Phone was selected: a blank number routes the booking and quote to email. Provided phone-contact numbers still require basic validation. Terms effective November 5, 2026 describe this process and separate payment for each completed seasonal visit.
+
+The public payment-methods endpoint returns enabled method names only (Stripe also needs a connected key). It omits instructions, fee estimates, usernames and payment links. Booking displays these names in a payment panel, refreshed every minute and when the window regains focus. No methods are advertised when settings are unavailable; the panel asks the customer to confirm arrangements with Dwight instead.

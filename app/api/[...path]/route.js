@@ -1,3 +1,4 @@
+import {publicPaymentMethods} from '../../../lib/paymentOptions.mjs';
 import {getAccess,authorizeRoute,authorizeTarget,listTeam,saveMember,personalSchedule} from '../../../lib/access.mjs';
 import { deleteBooking, deleteCustomer } from '../../../lib/bookings.mjs';
 import { listReplies, queueReply } from '../../../lib/replies.mjs';
@@ -87,6 +88,9 @@ async function handler(request, context) {
       const inquiry = await saveInquiry(data, 'inquiry');
       try { await flushOutbox({ids:[`${inquiry.reference}-inquiry-admin`],limit:1}); } catch { console.error('Inquiry notification deferred to outbox retry.'); }
       return json(inquiry, 201);
+    }
+    if (route === 'payment-methods' && method === 'GET') {
+      return json({methods:publicPaymentMethods(await getPayments(),stripeReady())});
     }
     if (route === 'catalog' && method === 'GET') {
       const { db } = await database();
