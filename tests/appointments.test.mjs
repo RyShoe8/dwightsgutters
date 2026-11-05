@@ -228,11 +228,17 @@ test('a signed Stripe checkout event records the payment on its booking automati
  const secret='whsec_test',sign=(raw,t=Math.floor(Date.now()/1000))=>`t=${t},v1=${createHmac('sha256',secret).update(`${t}.${raw}`).digest('hex')}`;
  const b=await book(45);await db.collection('bookings').updateOne({_id:b.receipt.reference},{$set:{startsAt:new Date(Date.now()-3600000)}});
  await updateBooking(b.receipt.reference,'completed',actor,{totalCents:15000});
- const raw=JSON.stringify({type:'checkout.session.completed',data:{object:{id:'cs_test_1',payment_status:'paid',amount_total:15000,metadata:{booking_id:b.receipt.reference}}}});
+ const raw=JSON.stringify({type:'checkout.session.completed',data:{object:{id:'cs_test_1',payment_status:'paid',amount_total:15000,currency:'usd',metadata:{booking_id:b.receipt.reference}}}});
  assert.throws(()=>verifyStripeEvent(raw,sign(raw).replace(/v1=.*/,'v1='+'0'.repeat(64)),secret),/signature/);
  assert.throws(()=>verifyStripeEvent(raw,sign(raw,Math.floor(Date.now()/1000)-600),secret),/Stale/);
  assert.throws(()=>verifyStripeEvent(raw,sign(raw),''),/not configured/);
  const event=verifyStripeEvent(raw,sign(raw),secret);
+ for(const bad of ['t=NaN,v1=abc','t=Infinity,v1=abc',`t=${Math.floor(Date.now()/1000)},v1`])assert.throws(()=>verifyStripeEvent(raw,bad,secret),error=>error.status===400);
+ for(const override of [{amount_total:1},{amount_total:15000,currency:'eur'},{amount_total:null},{amount_total:14999}]){
+  assert.deepEqual(await handleStripeEvent({...event,data:{object:{...event.data.object,...override}}}),{received:true});
+  assert.equal((await db.collection('bookings').findOne({_id:b.receipt.reference})).payment,undefined);
+ }
+
  const result=await handleStripeEvent(event);assert.deepEqual([result.payment.method,result.payment.amountCents,result.payment.reference,result.payment.recordedBy],['Stripe',15000,'cs_test_1','stripe']);
  assert.equal((await handleStripeEvent(event)).payment.reference,'cs_test_1');
  assert.deepEqual(await handleStripeEvent({...event,data:{object:{...event.data.object,metadata:{booking_id:'missing'}}}}),{received:true});

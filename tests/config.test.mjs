@@ -1,3 +1,5 @@
+import nextConfig from '../next.config.mjs';
+import {isPrivatePage} from '../lib/pagePrivacy.mjs';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { appUrl } from '../lib/email.mjs';
@@ -20,4 +22,16 @@ test('APP_URL validates production origins without leaking the supplied value', 
       if (value === undefined) delete process.env[key]; else process.env[key] = value;
     }
   }
+});
+
+test('sensitive pages exclude marketing scripts and apply a restrictive policy',async()=>{
+ for(const path of ['/admin','/admin/','/admin/sign-in/','/book/change/'])assert.equal(isPrivatePage(path),true);
+ for(const path of ['/','/book/','/service-area/','/gutter-cleaning/austin/'])assert.equal(isPrivatePage(path),false);
+ const rules=await nextConfig.headers();
+ for(const source of ['/admin/:path*','/book/change/:path*']){
+  const headers=rules.find(rule=>rule.source===source).headers;
+  const csp=headers.find(h=>h.key==='Content-Security-Policy').value;
+  assert.ok(csp.includes("connect-src 'self'"));assert.ok(csp.includes("frame-ancestors 'none'"));assert.ok(csp.includes("object-src 'none'"));
+  assert.ok(!csp.includes('analytics.ahrefs.com'));assert.ok(!csp.includes('cdn.cookie-script.com'));
+ }
 });

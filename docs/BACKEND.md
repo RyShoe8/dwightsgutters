@@ -150,3 +150,12 @@ Owners have Delete customer in the saved customer editor and Delete booking on b
 Booking consent explains that the customer receives a starting quote based on submitted details, approves any scope/price changes before work begins, and pays the invoice in full after completion. The phone field is optional even if Phone was selected: a blank number routes the booking and quote to email. Provided phone-contact numbers still require basic validation. Terms effective November 5, 2026 describe this process and separate payment for each completed seasonal visit.
 
 The public payment-methods endpoint returns enabled method names only (Stripe also needs a connected key). It omits instructions, fee estimates, usernames and payment links. Booking displays these names in a payment panel, refreshed every minute and when the window regains focus. No methods are advertised when settings are unavailable; the panel asks the customer to confirm arrangements with Dwight instead.
+
+
+## Security controls and regression checks
+
+Private admin and appointment-change pages exclude third-party marketing/consent scripts and carry a restrictive Content Security Policy (same-origin scripts/connections, no embedding, forms limited to the same origin). Public pages retain consent and analytics. HSTS is sent with the existing frame, referrer and MIME-sniffing protections. Admin API responses remain no-store. Keep APP_URL as the full HTTPS production origin; secret keys remain server environment variables.
+
+Stripe webhook signatures reject malformed timestamps/signatures and stale requests. An automatic Stripe payment must be in USD and exactly match the saved invoice total before the booking is marked paid. An unmatched payment leaves the invoice unpaid for operator review. Stripe network calls have a timeout; provider idempotency keys remain in place.
+
+Run npm test and npm run build for regressions, npm audit for dependency advisories, and npm run dev:local followed by node scripts/verify-local.mjs for isolated HTTP checks. The HTTP verifier covers sign-in, replay/CSRF, role enforcement, self-promotion denial, private scripts/headers, optional-phone booking, email capture, CRM and cancellation. It targets loopback only and sends no real email. Deployment permissions, provider account settings, database network access and backup recovery require separate infrastructure verification.

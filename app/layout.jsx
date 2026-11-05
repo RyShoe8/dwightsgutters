@@ -5,6 +5,7 @@ import './coverage.css';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import Interactions from '../components/Interactions';
+import MarketingScripts from '../components/MarketingScripts';
 import Analytics from '../components/Analytics';
 import JsonLd from '../components/JsonLd';
 import { businessSchema, pageMetadata, siteName, siteUrl, websiteSchema } from '../lib/seo.mjs';
@@ -22,5 +23,5 @@ export const metadata = {
 const consentDefault = "window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('consent','default',{analytics_storage:'denied',ad_storage:'denied',ad_user_data:'denied',ad_personalization:'denied',wait_for_update:500});";
 
 export default function RootLayout({ children }) {
-  return <html lang="en"><head><script dangerouslySetInnerHTML={{ __html: consentDefault }}/><script type="text/javascript" charSet="UTF-8" src="//cdn.cookie-script.com/s/c8318c85b862ad355fba0eab2b9141b6.js"></script><script src="https://analytics.ahrefs.com/analytics.js" data-key="L3xPJK/65u2SmjdoQcjk+g" async></script></head><body><Header />{children}<Footer /><Interactions /><Analytics /><JsonLd data={{ '@graph': [businessSchema(), websiteSchema()] }}/></body></html>;
+  return <html lang="en"><head><script dangerouslySetInnerHTML={{ __html: consentDefault }}/></head><body><Header />{children}<Footer /><Interactions /><MarketingScripts /><Analytics /><JsonLd data={{ '@graph': [businessSchema(), websiteSchema()] }}/></body></html>;
 }
