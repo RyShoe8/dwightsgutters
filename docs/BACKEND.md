@@ -159,3 +159,7 @@ Private admin and appointment-change pages exclude third-party marketing/consent
 Stripe webhook signatures reject malformed timestamps/signatures and stale requests. An automatic Stripe payment must be in USD and exactly match the saved invoice total before the booking is marked paid. An unmatched payment leaves the invoice unpaid for operator review. Stripe network calls have a timeout; provider idempotency keys remain in place.
 
 Run npm test and npm run build for regressions, npm audit for dependency advisories, and npm run dev:local followed by node scripts/verify-local.mjs for isolated HTTP checks. The HTTP verifier covers sign-in, replay/CSRF, role enforcement, self-promotion denial, private scripts/headers, optional-phone booking, email capture, CRM and cancellation. It targets loopback only and sends no real email. Deployment permissions, provider account settings, database network access and backup recovery require separate infrastructure verification.
+
+## Admin → Media
+
+Owners get a Media tab listing the brand assets from `branding/`, grouped in `lib/mediaLibrary.mjs`. `scripts/prepare-media.mjs` runs before `dev`, `dev:local` and `build`, copying those files to `public/media-library/` (gitignored) with small WebP previews. To add an asset, put it in `branding/` and list it in `lib/mediaLibrary.mjs`; `tests/media.test.mjs` fails if a file and the list disagree. The tab is owner-only, but the files themselves are public URLs (blocked in robots.txt), so don't put anything private in the library.
