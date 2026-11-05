@@ -103,8 +103,8 @@ async function handler(request, context) {
     }
     const addOnIds = (url.searchParams.get('addOns') || '').split(',').filter(Boolean).slice(0, 5);
     const visit = url.searchParams.get('visit') === '2' ? 2 : 1;
-    if (route === 'slots' && method === 'GET') return json({ slots: await availableSlots(url.searchParams.get('service'), url.searchParams.get('date'), addOnIds, { visit }) });
-    if (route === 'dates' && method === 'GET') return json({ dates: await availableDates(url.searchParams.get('service'), addOnIds, { visit, after: url.searchParams.get('after') }) });
+    if (route === 'slots' && method === 'GET') return json({ slots: await availableSlots(url.searchParams.get('service'), url.searchParams.get('date'), addOnIds, { visit, stories: url.searchParams.get('stories') }) });
+    if (route === 'dates' && method === 'GET') return json({ dates: await availableDates(url.searchParams.get('service'), addOnIds, { visit, after: url.searchParams.get('after'), stories: url.searchParams.get('stories') }) });
     if (route === 'bookings' && method === 'POST') {
       const data = await body(request);
       await limit('booking-global', 300);

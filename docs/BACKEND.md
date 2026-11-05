@@ -163,3 +163,5 @@ Run npm test and npm run build for regressions, npm audit for dependency advisor
 ## Admin → Media
 
 Owners get a Media tab listing the brand assets from `branding/`, grouped in `lib/mediaLibrary.mjs`. `scripts/prepare-media.mjs` runs before `dev`, `dev:local` and `build`, copying those files to `public/media-library/` (gitignored) with small WebP previews. To add an asset, put it in `branding/` and list it in `lib/mediaLibrary.mjs`; `tests/media.test.mjs` fails if a file and the list disagree. The tab is owner-only, but the files themselves are public URLs (blocked in robots.txt), so don't put anything private in the library.
+
+Two-story appointment length: each bookable service has an optional `twoStoryDurationMinutes` (Admin → Services; blank uses the one-story length). Seeding sets 90 minutes once on Gutter cleaning, Seasonal upkeep and Gutter repair when their one-story length is under 90. Slots and dates take a `stories` parameter so two-story customers only see times where the full appointment fits. Bookings keep the length saved when they were made.

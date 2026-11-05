@@ -122,3 +122,16 @@ test('a paid job gets one thank-you email with an unconditional $25 credit and e
   await recordPayment(b.receipt.reference, null, actor); await recordPayment(b.receipt.reference, 'Venmo', actor);
   assert.equal(await db.collection('outbox').countDocuments({ _id: `${b.receipt.reference}-review-request` }), 1);
 });
+test('two-story jobs reserve their longer appointment, and only fit where the full time is open', async () => {
+  const seeded = await db.collection('services').findOne({ _id: 'gutter-repair' }); assert.equal(seeded.twoStoryDurationMinutes, 90);
+  const { minutesFor } = await import('../lib/pricing.mjs'); assert.equal(minutesFor({ durationMinutes: 60 }, 'Two stories'), 60);
+  const day = date(50);
+  const one = await availableSlots('gutter-repair', day, [], { stories: 'One story' }), two = await availableSlots('gutter-repair', day, [], { stories: 'Two stories' });
+  assert.equal((new Date(one[0].endsAt) - new Date(one[0].startsAt)) / 60000, 60); assert.equal((new Date(two[0].endsAt) - new Date(two[0].startsAt)) / 60000, 90);
+  assert.equal(two.at(-1).label.startsWith('4:30'), true); assert.equal(one.at(-1).label.startsWith('5:00'), true);
+  const input = { requestId: randomUUID(), serviceId: 'gutter-repair', addOnIds: [], startsAt: one.at(-1).startsAt, expectedPriceCents: 5000, name: 'Tall Home', email: `tall-${randomUUID()}@example.com`, phone: '', contact: 'Email', address: '9 High St', city: 'Austin', zip: '78701', stories: 'Two stories', guards: 'No', notes: '', consent: true };
+  await assert.rejects(createBooking(input), /no longer available/);
+  const receipt = await createBooking({ ...input, requestId: randomUUID(), startsAt: two[0].startsAt });
+  const stored = await db.collection('bookings').findOne({ _id: receipt.reference });
+  assert.equal(stored.service.durationMinutes, 90); assert.equal((stored.endsAt - stored.startsAt) / 60000, 90);
+});

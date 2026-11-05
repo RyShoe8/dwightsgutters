@@ -4,7 +4,7 @@ import AcceptedPayments from './AcceptedPayments';
 import PhoneInput from './PhoneInput';
 import ContactForm from './ContactForm';
 import DatePicker from './DatePicker';
-import { priceFor, priceLabel, isHourly, rateLabel, storyOptions, addOnMinutes, isPlan } from '../lib/pricing.mjs';
+import { minutesFor, priceFor, priceLabel, isHourly, rateLabel, storyOptions, addOnMinutes, isPlan } from '../lib/pricing.mjs';
 import { useEffect, useState } from 'react';
 const money = cents => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(cents / 100);
 // Loads open dates or times for a picker and clears the selection when it's no longer offered.
@@ -29,15 +29,16 @@ export default function BookingForm() {
   const service = serviceId && `service=${encodeURIComponent(serviceId)}`;
   const baseService = catalog?.services.find(s => s._id === serviceId);
   const plan = isPlan(baseService);
-  const [dates, datesLoading] = useAvailability(service && `/api/dates/?${service}${addOnQuery}`, setDate, setError);
-  const [slots, slotsLoading] = useAvailability(service && date && `/api/slots/?${service}&date=${date}${addOnQuery}`, setSlot, setError);
+  const height = `&stories=${encodeURIComponent(stories)}`;
+  const [dates, datesLoading] = useAvailability(service && `/api/dates/?${service}${height}${addOnQuery}`, setDate, setError);
+  const [slots, slotsLoading] = useAvailability(service && date && `/api/slots/?${service}${height}&date=${date}${addOnQuery}`, setSlot, setError);
   // Seasonal upkeep's second cleaning: offered at least 60 days after the first, up to a year out.
-  const [dates2, dates2Loading] = useAvailability(plan && date && `/api/dates/?${service}&visit=2&after=${date}`, setDate2, setError);
-  const [slots2, slots2Loading] = useAvailability(plan && date2 && `/api/slots/?${service}&visit=2&date=${date2}`, setSlot2, setError);
+  const [dates2, dates2Loading] = useAvailability(plan && date && `/api/dates/?${service}${height}&visit=2&after=${date}`, setDate2, setError);
+  const [slots2, slots2Loading] = useAvailability(plan && date2 && `/api/slots/?${service}${height}&visit=2&date=${date2}`, setSlot2, setError);
   const availableAddOns = (catalog?.addOns || []).filter(a => a.appliesTo.includes(serviceId));
   const chosenAddOns = availableAddOns.filter(a => addOnIds.includes(a._id));
   const firstPrice = baseService ? priceFor(baseService, stories) + chosenAddOns.reduce((t, a) => t + a.priceCents, 0) : 0;
-  const minutes = baseService ? baseService.durationMinutes + chosenAddOns.reduce((t, a) => t + addOnMinutes(a), 0) : 0;
+  const minutes = baseService ? minutesFor(baseService, stories) + chosenAddOns.reduce((t, a) => t + addOnMinutes(a), 0) : 0;
   const basePrice = baseService ? priceFor(baseService, stories) : 0;
   const discount = plan ? Math.min(basePrice, baseService.secondVisitDiscountCents || 0) : 0;
   const secondPrice = plan ? basePrice - discount : 0;
