@@ -11,7 +11,7 @@ import { addOnMinutes, defaultSecondDate, isPlan, minutesFor, money, priceFor, p
 export default function AddBooking({ onSave, onCancel }) {
   const [requestId] = useState(() => crypto.randomUUID());
   const [catalog, setCatalog] = useState(null), [error, setError] = useState(''), [busy, setBusy] = useState(false);
-  const [serviceId, setServiceId] = useState(''), [stories, setStories] = useState(storyOptions[0]), [addOnIds, setAddOnIds] = useState([]), [contact, setContact] = useState('Email'), [zip, setZip] = useState('');
+  const [serviceId, setServiceId] = useState(''), [stories, setStories] = useState(storyOptions[0]), [addOnIds, setAddOnIds] = useState([]), [contact, setContact] = useState('Email'), [email, setEmail] = useState(''), [phone, setPhone] = useState(''), [zip, setZip] = useState('');
   const [date, setDate] = useState(''), [slot, setSlot] = useState(''), [date2, setDate2] = useState(''), [date2Chosen, setDate2Chosen] = useState(false), [slot2, setSlot2] = useState('');
   useEffect(() => { fetch('/api/catalog/').then(async response => { const data = await response.json(); if (!response.ok) throw Error(data.error); setCatalog(data); setServiceId(data.services[0]?._id || ''); }).catch(e => setError(e.message)); }, []);
   const base = catalog?.services.find(s => s._id === serviceId), plan = isPlan(base);
@@ -30,7 +30,9 @@ export default function AddBooking({ onSave, onCancel }) {
   const outsideArea = zip.length === 5 && catalog && !catalog.enabledZips?.includes(zip);
   function chooseService(id) { setServiceId(id); setDate2(''); setDate2Chosen(false); setSlot2(''); setAddOnIds(ids => ids.filter(a => catalog.addOns?.find(x => x._id === a)?.appliesTo.includes(id))); }
   async function submit(event) {
-    event.preventDefault(); setBusy(true); setError('');
+    event.preventDefault();
+    if (!email.trim() && !phone.trim()) { setError('Enter an email address or a phone number.'); return; }
+    setBusy(true); setError('');
     try { await onSave({ ...Object.fromEntries(new FormData(event.currentTarget)), requestId, serviceId, stories, addOnIds: chosen.map(a => a._id), startsAt: slot, ...(plan ? { secondStartsAt: slot2 } : {}), expectedPriceCents: firstPrice + secondPrice }); }
     catch (e) { setError(e.message); setBusy(false); }
   }
@@ -45,7 +47,8 @@ export default function AddBooking({ onSave, onCancel }) {
       <TimePicker label={plan ? 'Cleaning 1 arrival time' : 'Available arrival times'} date={date} slots={slots} loading={slotsLoading} value={slot} onChange={setSlot}/>
       {plan && <><h4>Cleaning 2</h4><p className="fine">At least 60 days after the first cleaning. We’ve suggested about 6 months.</p>{date ? <><DatePicker label="Cleaning 2 date · Austin time" dates={dates2} loading={dates2Loading} value={date2} onChange={value => { setDate2(value); setDate2Chosen(true); }}/><TimePicker label="Cleaning 2 arrival time" date={date2} slots={slots2} loading={slots2Loading} value={slot2} onChange={setSlot2}/></> : <p role="status">Choose the first cleaning date to see options.</p>}</>}
       <h4>Customer</h4>
-      <div className="field-grid"><label>Customer name<input name="name" required maxLength={160} autoComplete="off"/></label><label>Email address<input name="email" type="email" required maxLength={254} autoComplete="off"/></label><label>Phone number <small>(optional)</small><PhoneInput name="phone" maxLength={40} autoComplete="off"/></label><label>Preferred contact<BrandedSelect name="contact" value={contact} onChange={e => setContact(e.target.value)}><option>Email</option><option>Phone</option></BrandedSelect></label></div>
+      <div className="field-grid"><label>Customer name<input name="name" required maxLength={160} autoComplete="off"/></label><label>Email address<input name="email" type="email" value={email} onChange={e => setEmail(e.target.value)} autoComplete="off" maxLength={254}/></label><label>Phone number<PhoneInput name="phone" value={phone} onChange={e => setPhone(e.target.value)} autoComplete="off" maxLength={40}/></label>{email.trim() && phone.trim() && <label>Preferred contact<BrandedSelect name="contact" value={contact} onChange={e => setContact(e.target.value)}><option>Email</option><option>Phone</option></BrandedSelect></label>}</div>
+      <p className="fine">Enter an email, a phone number, or both.</p>
       <label>Street address<input name="address" required maxLength={160} autoComplete="off"/></label>
       <div className="field-grid"><label>City<input name="city" required defaultValue="Austin" maxLength={160} autoComplete="off"/></label><label>ZIP code<input name="zip" value={zip} onChange={e => setZip(e.target.value)} required pattern="[0-9]{5}" maxLength={5} inputMode="numeric" autoComplete="off"/></label><label>Gutter guards?<BrandedSelect name="guards"><option>Not sure</option><option>Yes</option><option>No</option></BrandedSelect></label></div>
       {outsideArea && <p className="fine" role="status">ZIP {zip} is outside the online service area. You can still add this booking.</p>}

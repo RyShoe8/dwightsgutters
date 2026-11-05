@@ -76,7 +76,7 @@ async function handler(request, context) {
       if (route === 'reschedule/confirm') { const confirmed = await confirmVisit(data); try { await flushOutbox({ ids: confirmed.ids, limit: 3 }); } catch { console.error('Email processing deferred to outbox retry.'); } return json({ when: confirmed.when }); }
       const changed = await changeAppointment(data);
       try { await flushOutbox({ ids: changed.ids, limit: 2 }); } catch { console.error('Rescheduling email processing deferred to outbox retry.'); }
-      return json({ when: changed.when });
+      return json({ when: changed.when, emailed: changed.emailed });
     }
     if (route === 'coverage' && method === 'GET') {
       const { db } = await database();
@@ -109,7 +109,7 @@ async function handler(request, context) {
     if (route === 'bookings' && method === 'POST') {
       const data = await body(request);
       await limit('booking-global', 300);
-      await limit(`booking-email:${String(data.email || '').trim().toLowerCase()}`, 12);
+      await limit(`booking-email:${String(data.email || data.phone || '').trim().toLowerCase()}`, 12);
       const booking = await createBooking(data);
       // Booking is committed. A mail/database retry failure must not turn success into
       // an error that invites a customer to reserve a second appointment.

@@ -174,4 +174,8 @@ Photos count against the MongoDB storage quota: expect roughly 0.5 MB each on av
 
 ## Adding a booking from the admin
 
-Owners and staff can add a booking for a customer (Bookings → + Add booking). It runs through `createBooking` with the signed-in `actor`, so pricing, plans, confirmation emails and customer records match online bookings. Differences: no consent box (`addedBy` is saved instead of `consentAt`); the booking is confirmed straight away even with a note; the ZIP coverage check is skipped; and the online booking switch, minimum notice and booking window are ignored, with dates open up to a year ahead. Business hours, closed days, buffers and double-booking checks still apply. An email address is still required.
+Owners and staff can add a booking for a customer (Bookings → + Add booking). It runs through `createBooking` with the signed-in `actor`, so pricing, plans, confirmation emails and customer records match online bookings. Differences: no consent box (`addedBy` is saved instead of `consentAt`); the booking is confirmed straight away even with a note; the ZIP coverage check is skipped; and the online booking switch, minimum notice and booking window are ignored, with dates open up to a year ahead. Business hours, closed days, buffers and double-booking checks still apply. Booking and customer records need an email or a phone number, or both; see below.
+
+## Email or phone
+
+Bookings (online and admin) and customer records need an email, a phone number, or both. With only one, it becomes the preferred contact; the preference is asked for only when both are given. Customers with no email have no `email` field, which the partial unique index on `customers.email` allows, and they are matched by phone instead. `queueEmail` skips messages with no address, so reminders, follow-ups, invoices and cancellation emails don't go out for them. Staff text those customers instead.
