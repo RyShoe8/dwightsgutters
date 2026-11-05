@@ -4,9 +4,11 @@ import AcceptedPayments from './AcceptedPayments';
 import PhoneInput from './PhoneInput';
 import ContactForm from './ContactForm';
 import DatePicker from './DatePicker';
-import { minutesFor, priceFor, priceLabel, isHourly, rateLabel, storyOptions, addOnMinutes, isPlan } from '../lib/pricing.mjs';
+import TimePicker from './TimePicker';
+import { defaultSecondDate, minutesFor, priceFor, priceLabel, isHourly, rateLabel, storyOptions, addOnMinutes, isPlan } from '../lib/pricing.mjs';
 import { useEffect, useState } from 'react';
 const money = cents => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(cents / 100);
+const wholeMoney = cents => money(cents).replace(/\.00$/, '');
 // Loads open dates or times for a picker and clears the selection when it's no longer offered.
 function useAvailability(url, setSelected, setError) {
   const [items, setItems] = useState([]), [loading, setLoading] = useState(false);
@@ -18,12 +20,9 @@ function useAvailability(url, setSelected, setError) {
   }, [url, setSelected, setError]);
   return [items, loading];
 }
-function TimeSelect({ label, date, slots, loading, value, onChange }) {
-  return <><label>{label}<BrandedSelect required value={value} onChange={e => onChange(e.target.value)} disabled={loading || !slots.length}><option value="">{loading ? 'Checking times…' : !date ? 'Choose a date first' : !slots.length ? 'No times available on this date' : 'Choose a time'}</option>{slots.map(s => <option key={s.startsAt} value={s.startsAt}>{s.label}</option>)}</BrandedSelect></label>{date && !loading && !slots.length && <p role="status">Please try another date or email Dwight for help.</p>}</>;
-}
 export default function BookingForm() {
   const [zip, setZip] = useState('');
-  const [catalog, setCatalog] = useState(null), [error, setError] = useState(''), [serviceId, setService] = useState(''), [date, setDate] = useState(''), [slot, setSlot] = useState(''), [date2, setDate2] = useState(''), [slot2, setSlot2] = useState(''), [busy, setBusy] = useState(false), [receipt, setReceipt] = useState(null), [requestId, setRequestId] = useState(''), [addOnIds, setAddOnIds] = useState([]), [stories, setStories] = useState(storyOptions[0]), [contact, setContact] = useState('Email');
+  const [catalog, setCatalog] = useState(null), [error, setError] = useState(''), [serviceId, setService] = useState(''), [date, setDate] = useState(''), [slot, setSlot] = useState(''), [date2, setDate2] = useState(''), [date2Chosen, setDate2Chosen] = useState(false), [slot2, setSlot2] = useState(''), [busy, setBusy] = useState(false), [receipt, setReceipt] = useState(null), [requestId, setRequestId] = useState(''), [addOnIds, setAddOnIds] = useState([]), [stories, setStories] = useState(storyOptions[0]), [contact, setContact] = useState('Email');
   useEffect(() => { setRequestId(crypto.randomUUID()); const params = new URLSearchParams(location.search); const requestedZip = params.get('zip'); if (/^\d{5}$/.test(requestedZip || '')) setZip(requestedZip); fetch('/api/catalog/').then(async r => { const data = await r.json(); if (!r.ok) throw Error(data.error); setCatalog(data); const id = data.services.find(s => s.name === params.get('service'))?._id || data.services[0]?._id || ''; setService(id); setAddOnIds((data.addOns || []).filter(a => a.name === params.get('addon') && a.appliesTo.includes(id)).map(a => a._id)); }).catch(e => setError(e.message)); }, []);
   const addOnQuery = addOnIds.length ? `&addOns=${encodeURIComponent(addOnIds.join(','))}` : '';
   const service = serviceId && `service=${encodeURIComponent(serviceId)}`;
@@ -32,7 +31,7 @@ export default function BookingForm() {
   const height = `&stories=${encodeURIComponent(stories)}`;
   const [dates, datesLoading] = useAvailability(service && `/api/dates/?${service}${height}${addOnQuery}`, setDate, setError);
   const [slots, slotsLoading] = useAvailability(service && date && `/api/slots/?${service}${height}&date=${date}${addOnQuery}`, setSlot, setError);
-  // Seasonal upkeep's second cleaning: offered at least 60 days after the first, up to a year out.
+  // Seasonal upkeep's second cleaning: offered at least 60 days after the first, up to 8 months out.
   const [dates2, dates2Loading] = useAvailability(plan && date && `/api/dates/?${service}${height}&visit=2&after=${date}`, setDate2, setError);
   const [slots2, slots2Loading] = useAvailability(plan && date2 && `/api/slots/?${service}${height}&visit=2&date=${date2}`, setSlot2, setError);
   const availableAddOns = (catalog?.addOns || []).filter(a => a.appliesTo.includes(serviceId));
@@ -42,7 +41,9 @@ export default function BookingForm() {
   const basePrice = baseService ? priceFor(baseService, stories) : 0;
   const discount = plan ? Math.min(basePrice, baseService.secondVisitDiscountCents || 0) : 0;
   const secondPrice = plan ? basePrice - discount : 0;
-  function chooseService(id) { setService(id); setDate2(''); setSlot2(''); setAddOnIds(ids => ids.filter(a => catalog.addOns?.find(x => x._id === a)?.appliesTo.includes(id))); }
+  // Suggest a date six months after the first cleaning until the customer picks their own.
+  useEffect(() => { if (plan && date && !date2Chosen && dates2.length) setDate2(defaultSecondDate(date, dates2)); }, [plan, date, date2Chosen, dates2]);
+  function chooseService(id) { setService(id); setDate2(''); setDate2Chosen(false); setSlot2(''); setAddOnIds(ids => ids.filter(a => catalog.addOns?.find(x => x._id === a)?.appliesTo.includes(id))); }
   async function submit(event) {
     event.preventDefault(); setBusy(true); setError('');
     const data = Object.fromEntries(new FormData(event.currentTarget));
@@ -63,18 +64,18 @@ export default function BookingForm() {
   }
   if (!catalog || !catalog.enabled) return <div role="status"><p className="eyebrow">LET’S TALK GUTTERS</p><h2>{!catalog && !error ? 'Checking availability…' : 'Scheduling opens soon.'}</h2><p>{error || (catalog ? 'Online appointments aren’t open yet. Send Dwight a cleaning request and he’ll help you plan a visit.' : 'Looking up services and appointment times.')}</p>{(catalog || error) && <ContactForm bookingRequest/>}</div>;
   return <form onSubmit={submit} aria-label="Book a cleaning"><fieldset disabled={busy}><legend className="booking-intro">Full cleaning of your home gutters from start to finish. <span>One agreed on price. Pay your invoice when the work is finished.</span></legend>
-    <label>Service<BrandedSelect value={serviceId} onChange={e => chooseService(e.target.value)} required>{catalog.services.map(s => <option key={s._id} value={s._id}>{s.name} — {priceLabel(s, stories)}{isPlan(s) ? ' per cleaning' : ''}</option>)}</BrandedSelect></label>
-    {plan && <p className="notice">Seasonal upkeep is two cleanings a year. Pick both dates below and save {money(discount)} on the second cleaning.</p>}
+    <label>Service<BrandedSelect value={serviceId} onChange={e => chooseService(e.target.value)} required>{catalog.services.map(s => <option key={s._id} value={s._id}>{s.name} — {isPlan(s) ? `Book twice now, save ${wholeMoney(s.secondVisitDiscountCents || 0)} when you pay after your second cleaning.` : priceLabel(s, stories)}</option>)}</BrandedSelect></label>
+    {plan && <p className="notice">Seasonal upkeep is two cleanings a year. Choose both dates below.</p>}
     <label>Home height<BrandedSelect name="stories" required value={stories} onChange={e => setStories(e.target.value)}>{storyOptions.map(o => <option key={o}>{o}</option>)}</BrandedSelect></label>
-    {availableAddOns.map(a => <label className="checkbox" key={a._id}><input type="checkbox" checked={addOnIds.includes(a._id)} onChange={e => setAddOnIds(ids => e.target.checked ? [...ids, a._id] : ids.filter(id => id !== a._id))}/><span>Add {a.name.toLowerCase()} — {isHourly(a) ? `from ${money(a.priceCents)}, about ${addOnMinutes(a)} more minutes reserved. Large repairs quoted before work begins.` : `${priceLabel(a)}, about ${addOnMinutes(a)} more minutes reserved`}{plan ? ' (first cleaning)' : ''}</span></label>)}
-    {plan ? <dl className="plan-summary" aria-label="Seasonal plan price"><div><dt>Cleaning 1<span>{minutes} minutes reserved</span></dt><dd>{money(firstPrice)}</dd></div><div><dt>Cleaning 2<span className="plan-save">Save {money(discount)}</span></dt><dd>{money(secondPrice)}</dd></div><div className="plan-total"><dt>Plan total<span>Both cleanings</span></dt><dd>{money(firstPrice + secondPrice)}</dd></div></dl>
+    {availableAddOns.map(a => <label className="checkbox" key={a._id}><input type="checkbox" checked={addOnIds.includes(a._id)} onChange={e => setAddOnIds(ids => e.target.checked ? [...ids, a._id] : ids.filter(id => id !== a._id))}/><span>Add {a.name.toLowerCase()} — {isHourly(a) ? `from ${money(a.priceCents)}. Large repairs quoted before work begins.` : priceLabel(a)}{plan ? ' (first cleaning)' : ''}</span></label>)}
+    {plan ? <dl className="plan-summary" aria-label="Seasonal plan price"><div><dt>Cleaning 1<span>{minutes} minutes reserved</span></dt><dd>{money(firstPrice)}</dd></div><div><dt>Cleaning 2<span>{minutesFor(baseService, stories)} minutes reserved</span><span className="plan-save">Save {money(discount)}</span></dt><dd>{money(secondPrice)}</dd></div><div className="plan-total"><dt>Plan total<span>Both cleanings</span></dt><dd>{money(firstPrice + secondPrice)}</dd></div></dl>
       : <p className="booking-price">From <strong>{money(firstPrice)}</strong> <span>· {minutes} minutes reserved</span></p>}
     {isHourly(baseService || {}) && <p className="fine">{baseService.name} is billed by the hour: {rateLabel(baseService)}. The final total depends on the time the repair takes.</p>}
     <p className="fine">Your starting quote is based on these details. We’ll confirm any scope or price changes with you before work begins. No payment is collected when you book.</p>
     {plan && <h3>Cleaning 1</h3>}
     <DatePicker label={plan ? 'Cleaning 1 date · Austin time' : 'Appointment date · Austin time'} dates={dates} loading={datesLoading} value={date} onChange={setDate}/>
-    <TimeSelect label="Available arrival time" date={date} slots={slots} loading={slotsLoading} value={slot} onChange={setSlot}/>
-    {plan && <><h3>Cleaning 2</h3><p className="fine">At least 60 days after your first cleaning, up to a year out. We’ll email you a month before to confirm it.</p>{date ? <><DatePicker label="Cleaning 2 date · Austin time" dates={dates2} loading={dates2Loading} value={date2} onChange={setDate2}/><TimeSelect label="Available arrival time" date={date2} slots={slots2} loading={slots2Loading} value={slot2} onChange={setSlot2}/></> : <p role="status">Choose your first cleaning date to see options.</p>}</>}
+    <TimePicker label={plan ? "Cleaning 1 arrival time" : "Available arrival times"} date={date} slots={slots} loading={slotsLoading} value={slot} onChange={setSlot}/>
+    {plan && <><h3>Cleaning 2</h3><p className="fine">We’ve suggested a date about 6 months after your first cleaning. Change it if you’d like, up to 8 months out. We’ll email you a month before to confirm it.</p>{date ? <><DatePicker label="Cleaning 2 date · Austin time" dates={dates2} loading={dates2Loading} value={date2} onChange={value => { setDate2(value); setDate2Chosen(true); }}/><TimePicker label="Cleaning 2 arrival time" date={date2} slots={slots2} loading={slots2Loading} value={slot2} onChange={setSlot2}/></> : <p role="status">Choose your first cleaning date to see options.</p>}</>}
     <hr className="form-divider"/><h3>Your details</h3><p className="fine">Bookings are available only in enabled ZIP codes. <a href="/service-area/" target="_blank" rel="noreferrer">Check the service-area map ↗</a></p>
     <div className="field-grid"><label>Your name<input name="name" required autoComplete="name" maxLength={160}/></label><label>Email address<input name="email" type="email" required autoComplete="email" maxLength={254}/></label><label>Phone number <small>(optional)</small><PhoneInput name="phone" autoComplete="tel" maxLength={40} aria-describedby="booking-phone-help"/><span className="field-help" id="booking-phone-help">Leave blank to receive your quote and updates by email.</span></label><label>Preferred contact<BrandedSelect name="contact" value={contact} onChange={e => setContact(e.target.value)}><option>Email</option><option>Phone</option></BrandedSelect></label></div>
     {contact === 'Phone' && <p className="fine">If you provide a phone number, Dwight will text your quote, confirmation and invoice. If you leave it blank, we’ll email you.</p>}

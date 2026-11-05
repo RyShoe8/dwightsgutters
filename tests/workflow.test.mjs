@@ -69,7 +69,11 @@ test('seasonal upkeep books two cleanings, $50 off the second, past the book-ahe
   const first = date(7);
   const secondDates = await availableDates('seasonal-upkeep', [], { visit: 2, after: first });
   assert.equal(secondDates[0], DateTime.fromISO(first).plus({ days: 60 }).toISODate());
-  assert.ok(secondDates.at(-1) > date(300), 'second cleaning can be months past the 60-day window');
+  const limit = DateTime.now().setZone('America/Chicago').plus({ months: 8 }).toISODate();
+  assert.ok(secondDates.at(-1) > date(200), 'second cleaning can be months past the 60-day window');
+  assert.ok(secondDates.at(-1) <= limit, 'second cleaning stops 8 months out');
+  assert.equal(secondDates.at(-1), limit);
+  assert.equal((await availableSlots('seasonal-upkeep', DateTime.fromISO(limit).plus({ days: 1 }).toISODate(), [], { visit: 2 })).length, 0);
   const far = secondDates.find(d => d >= date(150));
   const [secondSlot] = await availableSlots('seasonal-upkeep', far, [], { visit: 2 });
   await assert.rejects(book({ serviceId: 'seasonal-upkeep', days: 7, expected: 25000 }), /second cleaning/);
@@ -134,4 +138,14 @@ test('two-story jobs reserve their longer appointment, and only fit where the fu
   const receipt = await createBooking({ ...input, requestId: randomUUID(), startsAt: two[0].startsAt });
   const stored = await db.collection('bookings').findOne({ _id: receipt.reference });
   assert.equal(stored.service.durationMinutes, 90); assert.equal((stored.endsAt - stored.startsAt) / 60000, 90);
+});
+test('the suggested second cleaning is the first open day six months after the first', async () => {
+  const { defaultSecondDate } = await import('../lib/pricing.mjs');
+  assert.equal(defaultSecondDate('2026-11-03', ['2027-01-04', '2027-05-03', '2027-05-04']), '2027-05-03');
+  assert.equal(defaultSecondDate('2026-11-07', ['2027-05-06', '2027-05-10']), '2027-05-10');
+  assert.equal(defaultSecondDate('2026-08-31', ['2027-02-26', '2027-03-01']), '2027-03-01');
+  assert.equal(defaultSecondDate('2026-12-31', ['2027-06-29', '2027-06-30']), '2027-06-30');
+  assert.equal(defaultSecondDate('2027-01-05', ['2027-03-10', '2027-07-05']), '2027-07-05');
+  assert.equal(defaultSecondDate('2027-02-05', ['2027-05-10', '2027-07-05']), '2027-07-05');
+  assert.equal(defaultSecondDate('', ['2027-05-10']), ''); assert.equal(defaultSecondDate('2026-11-03', []), '');
 });
