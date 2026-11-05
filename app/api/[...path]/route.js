@@ -2,6 +2,7 @@ import {getAccess,authorizeRoute,authorizeTarget,listTeam,saveMember,personalSch
 import { deleteBooking, deleteCustomer } from '../../../lib/bookings.mjs';
 import { listReplies, queueReply } from '../../../lib/replies.mjs';
 import { listBookings } from '../../../lib/adminBookings.mjs';
+import { serviceMetrics } from '../../../lib/serviceMetrics.mjs';
 import { saveInquiry, listContacts } from '../../../lib/inquiries.mjs';
 import { getReviews, saveReviews } from '../../../lib/reviews.mjs';
 import { initialReviews } from '../../../lib/reviewSnapshot.mjs';
@@ -130,6 +131,10 @@ async function handler(request, context) {
     const actor = await requireAdmin(secret);
     const access=await getAccess(actor);
     authorizeRoute(access.role,route,method);
+    if (route === 'admin/nucleas/service-metrics' && method === 'GET') {
+      const { db } = await database();
+      return json(await serviceMetrics(db));
+    }
     jar.set(cookieName, secret, sessionOptions);
     const { db } = await database();
     if (route === 'admin/replies' && method === 'GET') {authorizeTarget(access.role,url.searchParams.get('type')); return json(await listReplies({ type: url.searchParams.get('type'), id: url.searchParams.get('id') }));}
