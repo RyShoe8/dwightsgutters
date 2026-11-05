@@ -9,7 +9,7 @@ export default function Page() {
     <h2>Information we collect</h2>
     <p><strong>When you book an appointment:</strong> your name, email address, phone number (optional), preferred contact method, property address, city, and ZIP code, your home’s height, whether you have gutter guards, the service and time you choose, and any notes you add.</p>
     <p><strong>When you send a message or request a callback:</strong> your name, email address, phone number if you ask for a callback, and your message.</p>
-    <p><strong>When we do the work:</strong> the final invoice total, hours for hourly repairs, the invoice number, and how you paid (for example, cash or check, Venmo, PayPal, or card). If you pay by card through Stripe, Stripe processes your card details; we never see or store your card number.</p>
+    <p><strong>When we do the work:</strong> photos of your gutters and the work we did, which may show parts of your property, plus the final invoice total, hours for hourly repairs, the invoice number, and how you paid (for example, cash or check, Venmo, PayPal, or card). If you pay by card through Stripe, Stripe processes your card details; we never see or store your card number.</p>
     <p><strong>When you use the website:</strong> if you accept analytics cookies in our cookie banner, Google Analytics collects information about how visitors use the site, such as pages viewed, approximate location, device and browser type, and how you arrived. See our <a href="/cookie-policy/">Cookie Policy</a> for details. Like most websites, our hosting provider may also keep standard server logs, which include IP addresses.</p>
     <p>We don’t ask for and don’t want sensitive information such as Social Security numbers, financial account numbers, or health information. Please don’t include it in notes or messages.</p>
 
@@ -36,7 +36,7 @@ export default function Page() {
     <p>We may also disclose information if required by law, to protect our rights or the safety of others, or as part of a sale or transfer of the business, in which case this policy would continue to apply.</p>
 
     <h2>How long we keep it</h2>
-    <p>We keep booking, invoice, and payment records for as long as we need them to serve you and to meet tax, accounting, and legal obligations. Messages and contact requests are kept while they’re useful for following up with you. Admin sign-in links and codes expire after 15 minutes, and admin sign-in sessions end after 90 days without use. Email message contents are removed from our system once they’ve been sent.</p>
+    <p>We keep booking, invoice, and payment records for as long as we need them to serve you and to meet tax, accounting, and legal obligations. Job photos are kept with your booking so we have a record of the work, and we don’t publish them without your permission. Messages and contact requests are kept while they’re useful for following up with you. Admin sign-in links and codes expire after 15 minutes, and admin sign-in sessions end after 90 days without use. Email message contents are removed from our system once they’ve been sent.</p>
 
     <h2>How we protect it</h2>
     <p>The website uses encrypted (HTTPS) connections. Access to customer records is limited to business staff who sign in with single-use email links. Links in your emails for changing an appointment use private, hard-to-guess tokens that are stored only in scrambled (hashed) form. No method of storage or transmission is perfectly secure, but we work to protect your information.</p>

@@ -3,6 +3,7 @@ import {getAccess,authorizeRoute,authorizeTarget,listTeam,saveMember,personalSch
 import { deleteBooking, deleteCustomer } from '../../../lib/bookings.mjs';
 import { listReplies, queueReply } from '../../../lib/replies.mjs';
 import { listBookings } from '../../../lib/adminBookings.mjs';
+import { addJobPhoto, deleteJobPhoto, listBookingPhotos, listPhotoJobs, readJobPhoto } from '../../../lib/jobPhotos.mjs';
 import { serviceMetrics } from '../../../lib/serviceMetrics.mjs';
 import { saveInquiry, listContacts } from '../../../lib/inquiries.mjs';
 import { getReviews, saveReviews } from '../../../lib/reviews.mjs';
@@ -197,6 +198,19 @@ async function handler(request, context) {
       if (result.delivery === 'email') try { await flushOutbox({ ids: [`${result.bookingId}-confirmation-customer`], limit: 3 }); } catch { console.error('Email processing deferred to outbox retry.'); }
       return json({ ...result, ...(result.delivery === 'text' ? { textMessage: await bookingText(result.bookingId, 'confirmation') } : {}) });
     }
+    if (path[1] === 'bookings' && path[3] === 'photos' && path.length === 4 && method === 'GET') return json({ items: await listBookingPhotos(path[2]) });
+    if (path[1] === 'bookings' && path[3] === 'photos' && path.length === 4 && method === 'POST') {
+      const raw = await text(request, 4194304);
+      let data; try { data = JSON.parse(raw); } catch { fail(400, 'Invalid JSON.'); }
+      return json(await addJobPhoto(path[2], data, actor), 201);
+    }
+    if (route === 'admin/job-photos' && method === 'GET') return json(await listPhotoJobs({ page: Math.max(0, Math.min(10000, Number(url.searchParams.get('page')) || 0)) }));
+    if (path[1] === 'job-photos' && ['thumb', 'full'].includes(path[3]) && path.length === 4 && method === 'GET') {
+      const bytes = await readJobPhoto(path[2], path[3]);
+      const disposition = url.searchParams.get('download') === '1' ? 'attachment' : 'inline';
+      return new Response(bytes, { headers: { 'Content-Type': 'image/jpeg', 'Content-Length': String(bytes.length), 'Cache-Control': 'private, max-age=3600', 'Content-Disposition': `${disposition}; filename="job-photo-${path[2].replace(/[^a-zA-Z0-9-]/g, '').slice(0, 8)}.jpg"` } });
+    }
+    if (path[1] === 'job-photos' && path.length === 3 && method === 'DELETE') return json(await deleteJobPhoto(path[2], access));
     if (path[1] === 'bookings' && path[3] === 'text' && path.length === 4 && method === 'GET') return json({ textMessage: await bookingText(path[2], url.searchParams.get('kind') === 'invoice' ? 'invoice' : 'confirmation') });
     if (path[1] === 'bookings' && path.length === 3 && method === 'PATCH') {
       const data = await body(request);
