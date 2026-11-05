@@ -188,6 +188,14 @@ async function handler(request, context) {
     }
     if (route === 'admin/customers' && method === 'POST') { const id = randomUUID(); await saveCustomer(id, { ...await body(request), create: true }, actor); return json({ id }, 201); }
     if (path[1] === 'customers' && path.length === 3 && method === 'DELETE') return json(await deleteCustomer(path[2],actor));
+    if (route === 'admin/booking-dates' && method === 'GET') return json({ dates: await availableDates(url.searchParams.get('service'), addOnIds, { visit, after: url.searchParams.get('after'), stories: url.searchParams.get('stories'), admin: true }) });
+    if (route === 'admin/booking-slots' && method === 'GET') return json({ slots: await availableSlots(url.searchParams.get('service'), url.searchParams.get('date'), addOnIds, { visit, stories: url.searchParams.get('stories'), admin: true }) });
+    if (route === 'admin/bookings' && method === 'POST') {
+      const booking = await createBooking(await body(request), actor);
+      try { await flushOutbox({ ids: [`${booking.reference}-confirmation-customer`, `${booking.reference}-confirmation-admin`], limit: 2 }); }
+      catch { console.error('Confirmation processing deferred to outbox retry.'); }
+      return json({ ...booking, ...(booking.delivery === 'text' ? { textMessage: await bookingText(booking.reference, 'confirmation') } : {}) }, 201);
+    }
     if (path[1] === 'bookings' && path.length === 3 && method === 'DELETE') return json(await deleteBooking(path[2],actor));
     if (path[1] === 'customers' && path.length === 3 && method === 'PUT') { const data = await body(request); delete data.create; await saveCustomer(path[2], data, actor); return json({ ok: true }); }
     if (path[1] === 'services' && path.length === 3 && method === 'PUT') { await saveService(path[2], await body(request), actor); refreshMarketing(); return json({ ok: true }); }

@@ -10,7 +10,7 @@ import { useEffect, useState } from 'react';
 const money = cents => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(cents / 100);
 const wholeMoney = cents => money(cents).replace(/\.00$/, '');
 // Loads open dates or times for a picker and clears the selection when it's no longer offered.
-function useAvailability(url, setSelected, setError) {
+export function useAvailability(url, setSelected, setError) {
   const [items, setItems] = useState([]), [loading, setLoading] = useState(false);
   useEffect(() => {
     setItems([]); if (!url) { setSelected(''); return; }

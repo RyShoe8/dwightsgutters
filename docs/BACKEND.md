@@ -171,3 +171,7 @@ Two-story appointment length: each bookable service has an optional `twoStoryDur
 Owners and staff add photos from a booking (Bookings → Add photos, which opens the camera on a phone). The browser shrinks each photo to a JPEG of at most about 2.4 MB plus a thumbnail (`lib/photoUpload.mjs`) and uploads them one at a time, which keeps each request under Vercel's request limit and removes location data. `lib/jobPhotos.mjs` stores them in the `jobPhotos` MongoDB collection, up to 40 per job. They are only served to signed-in admins, never from `public/`. Staff can view and add photos on any booking and delete their own; owners can delete any. Owners see every photo in Media → Jobs, grouped by booking. Deleting a booking deletes its photos.
 
 Photos count against the MongoDB storage quota: expect roughly 0.5 MB each on average, or about 1,000 photos per 512 MB.
+
+## Adding a booking from the admin
+
+Owners and staff can add a booking for a customer (Bookings → + Add booking). It runs through `createBooking` with the signed-in `actor`, so pricing, plans, confirmation emails and customer records match online bookings. Differences: no consent box (`addedBy` is saved instead of `consentAt`); the booking is confirmed straight away even with a note; the ZIP coverage check is skipped; and the online booking switch, minimum notice and booking window are ignored, with dates open up to a year ahead. Business hours, closed days, buffers and double-booking checks still apply. An email address is still required.
