@@ -3,6 +3,7 @@ import {getAccess,authorizeRoute,authorizeTarget,listTeam,saveMember,personalSch
 import { deleteBooking, deleteCustomer } from '../../../lib/bookings.mjs';
 import { listReplies, queueReply } from '../../../lib/replies.mjs';
 import { listBookings } from '../../../lib/adminBookings.mjs';
+import { addBlogImage, deletePost, listAdminPosts, readBlogImage, savePost } from '../../../lib/blog.mjs';
 import { addJobPhoto, deleteJobPhoto, listBookingPhotos, listPhotoJobs, readJobPhoto } from '../../../lib/jobPhotos.mjs';
 import { serviceMetrics } from '../../../lib/serviceMetrics.mjs';
 import { saveInquiry, listContacts } from '../../../lib/inquiries.mjs';
@@ -68,6 +69,11 @@ async function handler(request, context) {
     }
     if (method !== 'GET') assertOrigin(request);
     await ensureInitialized();
+    // Blog photos are public. Each upload gets a new address, so they can be cached for good.
+    if (path[0] === 'blog-images' && path.length === 3 && ['full', 'card'].includes(path[2]) && method === 'GET') {
+      const bytes = await readBlogImage(path[1], path[2]);
+      return new Response(bytes, { headers: { 'Content-Type': 'image/jpeg', 'Content-Length': String(bytes.length), 'Cache-Control': 'public, max-age=31536000, immutable' } });
+    }
     if (['reschedule/details', 'reschedule/change', 'reschedule/confirm'].includes(route) && method === 'POST') {
       const data = await body(request);
       await limit('reschedule-global', 300);
@@ -211,6 +217,18 @@ async function handler(request, context) {
       const raw = await text(request, 4194304);
       let data; try { data = JSON.parse(raw); } catch { fail(400, 'Invalid JSON.'); }
       return json(await addJobPhoto(path[2], data, actor), 201);
+    }
+    if (route === 'admin/posts' && method === 'GET') return json({ items: await listAdminPosts() });
+    if (path[1] === 'posts' && path.length === 3 && method === 'PUT') {
+      const raw = await text(request, 262144);
+      let data; try { data = JSON.parse(raw); } catch { fail(400, 'Invalid JSON.'); }
+      const saved = await savePost(path[2], data, actor); refreshMarketing(); return json(saved);
+    }
+    if (path[1] === 'posts' && path.length === 3 && method === 'DELETE') { const result = await deletePost(path[2], actor); refreshMarketing(); return json(result); }
+    if (path[1] === 'posts' && path[3] === 'images' && path.length === 4 && method === 'POST') {
+      const raw = await text(request, 4194304);
+      let data; try { data = JSON.parse(raw); } catch { fail(400, 'Invalid JSON.'); }
+      return json(await addBlogImage(path[2], data, actor), 201);
     }
     if (route === 'admin/job-photos' && method === 'GET') return json(await listPhotoJobs({ page: Math.max(0, Math.min(10000, Number(url.searchParams.get('page')) || 0)) }));
     if (path[1] === 'job-photos' && ['thumb', 'full'].includes(path[3]) && path.length === 4 && method === 'GET') {

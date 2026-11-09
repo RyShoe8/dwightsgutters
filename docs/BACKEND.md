@@ -179,3 +179,9 @@ Owners and staff can add a booking for a customer (Bookings → + Add booking). 
 ## Email or phone
 
 Bookings (online and admin) and customer records need an email, a phone number, or both. With only one, it becomes the preferred contact; the preference is asked for only when both are given. Customers with no email have no `email` field, which the partial unique index on `customers.email` allows, and they are matched by phone instead. `queueEmail` skips messages with no address, so reminders, follow-ups, invoices and cancellation emails don't go out for them. Staff text those customers instead.
+
+## Blog
+
+Owners write posts in Admin → Blog (`components/BlogManager.jsx`); staff have no access. Posts live in the `posts` collection (`lib/blog.mjs`) with a unique `slug`, and are drafts until published. The first publish sets `publishedAt`, which later edits keep. Saving or deleting a post refreshes the marketing pages, so `/blog/`, the post page, the sitemap, `/blog/feed.xml` and `/llms.txt` update right away.
+
+Post bodies use a small Markdown subset parsed by `lib/postFormat.mjs` into plain data and rendered by `components/PostBody.jsx`, never as raw HTML. Links must be site paths, https, mailto or tel; images must be blog uploads or brand assets. Uploaded photos are shrunk in the browser and stored in `blogImages` (a full and a card size). They are served publicly from `/api/blog-images/:id/full|card/` and deleted with their post. `/blog/` is noindex and left out of the sitemap until a post is published.
