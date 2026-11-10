@@ -47,12 +47,12 @@ export default async function Page({ params }) {
     <aside className="container post-narrow post-author" aria-label="About Dwight’s Gutters">
       <img src="/assets/mark.png" alt="" width="72" height="72"/>
       <div><p className="eyebrow">FROM DWIGHT’S GUTTERS</p><p>Veteran-owned gutter cleaning and repair for one- and two-story homes in Austin and surrounding cities. Book online in a couple of minutes, and pay after the job.</p>
-        <div className="actions"><a className="button" href="/book/">Book a cleaning <span aria-hidden="true">↗</span></a><a className="text-link" href={businessPhoneHref}>Call or text {businessPhone}</a></div></div>
+        <div className="actions"><a className="button" href="/book/">Book a cleaning</a><a className="text-link" href={businessPhoneHref}>Call or text {businessPhone}</a></div></div>
     </aside>
     {related.length > 0 && <section className="section pale blog-more" aria-labelledby="related-posts"><div className="container">
-      <div className="section-heading"><div><p className="eyebrow">KEEP READING</p><h2 id="related-posts">More from the blog</h2></div><a className="text-link" href="/blog/">All posts →</a></div>
+      <div className="section-heading"><div><p className="eyebrow">KEEP READING</p><h2 id="related-posts">More from the blog</h2></div><a className="text-link" href="/blog/">All posts</a></div>
       <div className="post-grid">{related.map(item => <PostCard key={item.id} post={item}/>)}</div>
     </div></section>}
-    <section className="cta"><div className="container cta-inner"><div><p className="eyebrow">LET’S CLEAR THINGS UP</p><h2>Your gutters called.<br/>We’ll take it from here.</h2></div><a className="button white" href="/book/">Book a Cleaning<span aria-hidden="true">↗</span></a></div></section>
+    <section className="cta"><div className="container cta-inner"><div><p className="eyebrow">LET’S CLEAR THINGS UP</p><h2>Your gutters called.<br/>We’ll take it from here.</h2></div><a className="button white" href="/book/">Book a Cleaning</a></div></section>
   </main>;
 }

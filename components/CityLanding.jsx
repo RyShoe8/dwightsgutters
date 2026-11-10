@@ -82,21 +82,21 @@ export default function CityLanding({ service, citySlug, data }) {
     <ImageHero image={content.image} alt={content.alt} caption={`SERVING ${city.name.toUpperCase()} & NEARBY.`}>
       <nav className="breadcrumbs" aria-label="Breadcrumb"><a href="/">Home</a> / <a href={`/${service}/`}>{landingServices[service].name}</a> / <span>{city.name}</span></nav>
       <p className="eyebrow">{content.eyebrow}</p><h1>{content.h1}</h1><p className="lead">{content.lead}</p>
-      <div className="actions"><a className="button" href={content.bookHref}>{content.cta} <span aria-hidden="true">↗</span></a><a className="text-link" href={businessPhoneHref}>Call or text {businessPhone}</a></div>
+      <div className="actions"><a className="button" href={content.bookHref}>{content.cta}</a><a className="text-link" href={businessPhoneHref}>Call or text {businessPhone}</a></div>
       <ul className="landing-trust"><li>Veteran-owned</li>{rating && <li>{rating.rating.toFixed(1)}★ from {rating.count} reviews</li>}<li>Online booking</li><li>Pay after the job</li></ul>
     </ImageHero>
     <section className="section container landing-facts" aria-label={`${landingServices[service].name} in ${city.name} at a glance`}>
       <dl>
         <div><dt>Your service</dt><dd>{landingServices[service].name}<span className="fact-note">For one- and two-story homes</span></dd></div>
         <div><dt>{service === 'gutter-cleaning' ? 'Starting prices' : 'Repair pricing'}</dt><dd>{content.prices.length ? <ul className="fact-price-list">{content.prices.slice(0,2).map(([label, price]) => <li key={label}><span>{label}</span><strong>{price}</strong></li>)}</ul> : 'Shown when you book'}<span className="fact-note">Final scope and price confirmed before work.</span></dd></div>
-        <div><dt>Your area</dt><dd>{city.name}, TX<span className="fact-note">{city.county}</span><a className="fact-link" href="/service-area/#communities">Check your address →</a></dd></div>
-        <div><dt>Ready to book?</dt><dd><a className="fact-link" href={content.bookHref}>Choose an appointment →</a><span className="fact-note">Instant email confirmation</span><a className="fact-phone" href={businessPhoneHref}>Call or text {businessPhone}</a></dd></div>
+        <div><dt>Your area</dt><dd>{city.name}, TX<span className="fact-note">{city.county}</span><a className="fact-link" href="/service-area/#communities">Check your address</a></dd></div>
+        <div><dt>Ready to book?</dt><dd><a className="fact-link" href={content.bookHref}>Choose an appointment</a><span className="fact-note">Instant email confirmation</span><a className="fact-phone" href={businessPhoneHref}>Call or text {businessPhone}</a></dd></div>
       </dl>
-      <details className="landing-zip-details"><summary>View ZIP codes for {city.name}</summary><p>{city.zips.join(' · ')}</p><a className="text-link" href="/service-area/#communities">Check current coverage →</a></details>
+      <details className="landing-zip-details"><summary>View ZIP codes for {city.name}</summary><p>{city.zips.join(' · ')}</p><a className="text-link" href="/service-area/#communities">Check current coverage</a></details>
     </section>
     {content.prices.length > 0 && <section className="section pale"><div className="container"><div className="section-heading"><div><p className="eyebrow">CLEAR, UPFRONT PRICING</p><h2>What it costs in {city.name}</h2></div><p>No payment when you book. Dwight confirms the final scope and price before any work starts, and you pay after the job.</p></div>
       <div className="service-grid landing-prices">{content.prices.map(([label, price, note]) => <div className="service-card" key={label}><h3>{label}</h3><p className="landing-price">{price}</p><p>{note}</p></div>)}</div>
-      <div className="actions"><a className="button" href={content.bookHref}>{content.cta} <span aria-hidden="true">↗</span></a></div></div></section>}
+      <div className="actions"><a className="button" href={content.bookHref}>{content.cta}</a></div></div></section>}
     <section className="section container split landing-local">
       <div><p className="eyebrow">WHAT’S INCLUDED</p><h2>Done right, start to finish</h2><ul className="check-list">{content.included.map(item => <li key={item}>{item}</li>)}</ul></div>
       <div className="detail-aside"><h3>{landingServices[service].name} in {city.name}</h3><p>{city.local}</p>{city.neighborhoods.length > 0 && <p>We serve homes across {city.name}, including {list(city.neighborhoods)}.</p>}<p className="fine">ZIP codes served: {city.zips.join(', ')}</p></div>
@@ -112,11 +112,11 @@ export default function CityLanding({ service, citySlug, data }) {
       <div className="faqs">{content.faqs.map(([q, a]) => <details key={q}><summary>{q}<span aria-hidden="true">+</span></summary><p>{a}</p></details>)}</div>
     </section>
     <section className="section pale"><div className="container landing-links">
-      <div><h2>Also in {city.name}</h2><p><a href={landingPath(other, city.slug)}>{landingServices[other].name} in {city.name} →</a></p></div>
+      <div><h2>Also in {city.name}</h2><p><a href={landingPath(other, city.slug)}>{landingServices[other].name} in {city.name}</a></p></div>
       {nearby.length > 0 && <div><h2>Nearby areas</h2><ul>{nearby.map(n => <li key={n.slug}><a href={landingPath(service, n.slug)}>{landingServices[service].name} in {n.name}</a></li>)}</ul></div>}
-      <div><h2>All service areas</h2><p><a href={`/${service}/`}>{landingServices[service].name} across the Austin area →</a></p></div>
+      <div><h2>All service areas</h2><p><a href={`/${service}/`}>{landingServices[service].name} across the Austin area</a></p></div>
     </div></section>
-    <section className="landing-cta"><div className="container"><h2>Ready when you are, {city.name}.</h2><p>Book online in a couple of minutes, or call or text {businessPhone}.</p><div className="actions"><a className="button" href={content.bookHref}>{content.cta} <span aria-hidden="true">↗</span></a></div></div></section>
+    <section className="landing-cta"><div className="container"><h2>Ready when you are, {city.name}.</h2><p>Book online in a couple of minutes, or call or text {businessPhone}.</p><div className="actions"><a className="button" href={content.bookHref}>{content.cta}</a></div></div></section>
     <div className="landing-sticky" aria-label="Quick actions"><a className="button" href={content.bookHref}>Book online</a><a className="sticky-call" href={businessPhoneHref}>Call or text</a></div>
   </main>;
 }
@@ -142,7 +142,7 @@ export async function LandingHub({ service }) {
   const schema = { '@graph': [breadcrumbSchema([['Home', '/'], [name, `/${service}/`]]), { '@type': 'ItemList', name: `${name} service areas`, itemListElement: served.map((c, i) => ({ '@type': 'ListItem', position: i + 1, name: `${name} in ${c.name}, TX`, url: absolute(landingPath(service, c.slug)) })) }] };
   return <main id="main" className="landing">
     <JsonLd data={schema}/>
-    <section className="page-intro"><div className="container"><p className="eyebrow">AUSTIN & SURROUNDING CITIES</p><h1>{name} near Austin, TX</h1><p className="lead">{service === 'gutter-cleaning' ? 'Veteran-owned gutter cleaning for one- and two-story homes across the Austin area. Pick your city for local pricing, ZIP codes, and online booking.' : 'Hourly gutter repair for sagging, leaking, and loose gutters across the Austin area. Pick your city for local details and online booking.'}</p><div className="actions"><a className="button" href={`/book/?service=${encodeURIComponent(landingServices[service].bookingName).replace(/%20/g, '+')}`}>Book online <span aria-hidden="true">↗</span></a><a className="text-link" href={businessPhoneHref}>Call or text {businessPhone}</a></div></div></section>
+    <section className="page-intro"><div className="container"><p className="eyebrow">AUSTIN & SURROUNDING CITIES</p><h1>{name} near Austin, TX</h1><p className="lead">{service === 'gutter-cleaning' ? 'Veteran-owned gutter cleaning for one- and two-story homes across the Austin area. Pick your city for local pricing, ZIP codes, and online booking.' : 'Hourly gutter repair for sagging, leaking, and loose gutters across the Austin area. Pick your city for local details and online booking.'}</p><div className="actions"><a className="button" href={`/book/?service=${encodeURIComponent(landingServices[service].bookingName).replace(/%20/g, '+')}`}>Book online</a><a className="text-link" href={businessPhoneHref}>Call or text {businessPhone}</a></div></div></section>
     <section className="section container"><ul className="city-grid">{served.map(c => <li key={c.slug}><a href={landingPath(service, c.slug)}><strong>{c.name}</strong><span>{c.county} · {c.zips.length} ZIP code{c.zips.length === 1 ? '' : 's'}</span></a></li>)}</ul>
       <p className="fine">Don’t see your city? <a href="/contact/">Contact Dwight</a> to ask about coverage.</p></section>
   </main>;

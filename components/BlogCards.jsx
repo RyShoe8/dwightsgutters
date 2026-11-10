@@ -12,6 +12,6 @@ export function PostCard({ post, headingLevel = 3 }) {
   const Heading = `h${headingLevel}`;
   return <article className="post-card">
     <a className="post-card-photo" href={`/blog/${post.slug}/`} tabIndex={-1} aria-hidden="true"><PostCover post={post} size="card" sizes="(max-width: 700px) 100vw, (max-width: 1100px) 50vw, 400px" decorative/></a>
-    <div className="post-card-copy"><PostMeta post={post}/><Heading><a href={`/blog/${post.slug}/`}>{post.title}</a></Heading><p>{post.excerpt}</p><a className="card-link" href={`/blog/${post.slug}/`} aria-hidden="true" tabIndex={-1}>Read the post →</a></div>
+    <div className="post-card-copy"><PostMeta post={post}/><Heading><a href={`/blog/${post.slug}/`}>{post.title}</a></Heading><p>{post.excerpt}</p><a className="card-link" href={`/blog/${post.slug}/`} aria-hidden="true" tabIndex={-1}>Read the post</a></div>
   </article>;
 }

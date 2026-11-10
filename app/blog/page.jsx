@@ -27,7 +27,7 @@ export default async function Page() {
       <section className="section container blog-featured" aria-label="Latest post">
         <article className="post-feature">
           <a className="post-feature-photo" href={`/blog/${featured.slug}/`} tabIndex={-1} aria-hidden="true"><PostCover post={featured} priority sizes="(max-width: 900px) 100vw, 60vw" decorative/></a>
-          <div className="post-feature-copy"><p className="eyebrow">LATEST POST</p><PostMeta post={featured}/><h2><a href={`/blog/${featured.slug}/`}>{featured.title}</a></h2><p>{featured.excerpt}</p><a className="button" href={`/blog/${featured.slug}/`}>Read the post <span aria-hidden="true">→</span></a></div>
+          <div className="post-feature-copy"><p className="eyebrow">LATEST POST</p><PostMeta post={featured}/><h2><a href={`/blog/${featured.slug}/`}>{featured.title}</a></h2><p>{featured.excerpt}</p><a className="button" href={`/blog/${featured.slug}/`}>Read the post</a></div>
         </article>
       </section>
       {rest.length > 0 && <section className="section pale blog-more" aria-labelledby="more-posts"><div className="container">
@@ -39,8 +39,8 @@ export default async function Page() {
       <p className="eyebrow">COMING SOON</p>
       <h2>The first posts are on the way.</h2>
       <p>We’re putting together seasonal gutter tips and local advice for Austin-area homeowners. Check back soon.</p>
-      <div className="actions"><a className="button" href="/book/">Book a cleaning <span aria-hidden="true">↗</span></a><a className="text-link" href={businessPhoneHref}>Call or text {businessPhone}</a></div>
+      <div className="actions"><a className="button" href="/book/">Book a cleaning</a><a className="text-link" href={businessPhoneHref}>Call or text {businessPhone}</a></div>
     </div></section>}
-    <section className="cta"><div className="container cta-inner"><div><p className="eyebrow">LET’S CLEAR THINGS UP</p><h2>Your gutters called.<br/>We’ll take it from here.</h2></div><a className="button white" href="/book/">Book a Cleaning<span aria-hidden="true">↗</span></a></div></section>
+    <section className="cta"><div className="container cta-inner"><div><p className="eyebrow">LET’S CLEAR THINGS UP</p><h2>Your gutters called.<br/>We’ll take it from here.</h2></div><a className="button white" href="/book/">Book a Cleaning</a></div></section>
   </main>;
 }
