@@ -122,7 +122,8 @@ test('a paid job gets one thank-you email with an unconditional $25 credit and e
   await updateBooking(b.receipt.reference, 'completed', actor, { totalCents: 15000 });
   await recordPayment(b.receipt.reference, 'Cash or check', actor);
   const mail = await outbox(`${b.receipt.reference}-review-request`);
-  for (const part of ['$25 off your next gutter cleaning', 'share.google', 'yelp.com/biz', 'The $25 credit is yours either way']) assert.ok(mail.text.includes(part), part);
+  for (const part of ['$25 off your next gutter cleaning', 'share.google', 'The $25 credit is yours either way']) assert.ok(mail.text.includes(part), part);
+  assert.equal(/yelp/i.test(mail.text + mail.html), false, 'no Yelp review request');
   await recordPayment(b.receipt.reference, null, actor); await recordPayment(b.receipt.reference, 'Venmo', actor);
   assert.equal(await db.collection('outbox').countDocuments({ _id: `${b.receipt.reference}-review-request` }), 1);
 });
